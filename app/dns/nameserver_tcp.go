@@ -68,7 +68,7 @@ func NewTCPLocalNameServer(url *url.URL) (*TCPNameServer, error) {
 	}
 
 	s.dial = func(ctx context.Context) (net.Conn, error) {
-		return internet.DialSystem(ctx, s.destination, nil)
+		return internet.DialSystemDNS(ctx, s.destination, nil)
 	}
 
 	return s, nil
