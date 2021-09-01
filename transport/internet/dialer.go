@@ -75,6 +75,20 @@ func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig
 	return effectiveSystemDialer.Dial(ctx, src, dest, sockopt)
 }
 
+// SagerNet: private
+func DialSystemDNS(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (net.Conn, error) {
+	var src net.Address
+	if outbound := session.OutboundFromContext(ctx); outbound != nil {
+		src = outbound.Gateway
+	}
+
+	if transportLayerOutgoingTag := session.GetTransportLayerProxyTagFromContext(ctx); transportLayerOutgoingTag != "" {
+		return DialTaggedOutbound(ctx, dest, transportLayerOutgoingTag)
+	}
+
+	return effectiveSystemDNSDialer.Dial(ctx, src, dest, sockopt)
+}
+
 func DialTaggedOutbound(ctx context.Context, dest net.Destination, tag string) (net.Conn, error) {
 	if tagged.Dialer == nil {
 		return nil, newError("tagged dial not enabled")
