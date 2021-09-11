@@ -14,4 +14,6 @@ message HTTPResponse {}
 
 message Config {
   v2ray.core.common.serial.TypedMessage response = 1;
+  bool keep_connection = 2;
+  uint32 user_level = 3;
 }

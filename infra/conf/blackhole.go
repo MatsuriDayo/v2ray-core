@@ -22,7 +22,9 @@ func (*HTTPResponse) Build() (proto.Message, error) {
 }
 
 type BlackholeConfig struct {
-	Response json.RawMessage `json:"response"`
+	Response       json.RawMessage `json:"response"`
+	KeepConnection bool            `json:"keepConnection"`
+	UserLevel      uint32          `json:"userLevel"`
 }
 
 func (v *BlackholeConfig) Build() (proto.Message, error) {
@@ -37,6 +39,10 @@ func (v *BlackholeConfig) Build() (proto.Message, error) {
 			return nil, err
 		}
 		config.Response = serial.ToTypedMessage(responseSettings)
+	}
+	if v.KeepConnection {
+		config.KeepConnection = true
+		config.UserLevel = v.UserLevel
 	}
 
 	return config, nil
