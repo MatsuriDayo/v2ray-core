@@ -2,6 +2,7 @@ package strmatcher
 
 import (
 	"regexp"
+	"strings"
 )
 
 // Matcher is the interface to determine a string matches a pattern.
@@ -30,11 +31,11 @@ func (t Type) New(pattern string) (Matcher, error) {
 	// 1. regex matching is case-sensitive
 	switch t {
 	case Full:
-		return fullMatcher(pattern), nil
+		return fullMatcher(strings.ToLower(pattern)), nil
 	case Substr:
-		return substrMatcher(pattern), nil
+		return substrMatcher(strings.ToLower(pattern)), nil
 	case Domain:
-		return domainMatcher(pattern), nil
+		return domainMatcher(strings.ToLower(pattern)), nil
 	case Regex:
 		r, err := regexp.Compile(pattern)
 		if err != nil {
