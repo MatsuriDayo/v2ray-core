@@ -111,6 +111,12 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 		return newError("invalid outbound")
 	}
 
+	fakeDNS := true
+	inbound := session.InboundFromContext(ctx)
+	if inbound != nil && inbound.SkipFakeDNS {
+		fakeDNS = false
+	}
+
 	srcNetwork := outbound.Target.Network
 
 	dest := outbound.Target
@@ -186,7 +192,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 			if !h.isOwnLink(ctx) {
 				isIPQuery, domain, id, qType := parseIPQuery(b.Bytes())
 				if isIPQuery {
-					go h.handleIPQuery(id, qType, domain, writer)
+					go h.handleIPQuery(id, qType, domain, writer, fakeDNS)
 					continue
 				}
 			}
@@ -223,7 +229,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 	return nil
 }
 
-func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter) {
+func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter, fakedns bool) {
 	var ips []net.IP
 	var err error
 
@@ -231,7 +237,7 @@ func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string,
 
 	// Do NOT skip FakeDNS
 	if c, ok := h.client.(dns.ClientWithIPOption); ok {
-		c.SetFakeDNSOption(true)
+		c.SetFakeDNSOption(fakedns)
 	} else {
 		newError("dns.Client doesn't implement ClientWithIPOption")
 	}
