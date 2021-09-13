@@ -70,12 +70,12 @@ type DomainMatcher struct {
 func NewDomainMatcher(matcherType string, domains []*routercommon.Domain) (*DomainMatcher, error) {
 	var indexMatcher strmatcher.IndexMatcher
 	switch matcherType {
-	case "mph", "hybrid":
-		indexMatcher = strmatcher.NewMphIndexMatcher()
 	case "linear":
 		indexMatcher = strmatcher.NewLinearIndexMatcher()
+		/*	case "mph", "hybrid":
+			fallthrough*/
 	default:
-		indexMatcher = strmatcher.NewLinearIndexMatcher()
+		indexMatcher = strmatcher.NewMphIndexMatcher()
 	}
 	for _, domain := range domains {
 		matcher, err := domainToMatcher(domain)
