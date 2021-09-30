@@ -5,6 +5,7 @@ package dns
 
 import (
 	"context"
+	"strings"
 
 	"github.com/v2fly/v2ray-core/v4/common/net"
 	"github.com/v2fly/v2ray-core/v4/features/dns"
@@ -15,6 +16,8 @@ import (
 type LocalNameServer struct {
 	client *localdns.Client
 }
+
+const errEmptyResponse = "No address associated with hostname"
 
 // QueryIP implements Server.
 func (s *LocalNameServer) QueryIP(_ context.Context, domain string, _ net.IP, option dns.IPOption, _ bool) ([]net.IP, error) {
@@ -28,6 +31,10 @@ func (s *LocalNameServer) QueryIP(_ context.Context, domain string, _ net.IP, op
 		ips, err = s.client.LookupIPv4(domain)
 	case option.IPv6Enable:
 		ips, err = s.client.LookupIPv6(domain)
+	}
+
+	if err != nil && strings.HasSuffix(err.Error(), errEmptyResponse) {
+		err = dns.ErrEmptyResponse
 	}
 
 	if len(ips) > 0 {
