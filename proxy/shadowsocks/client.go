@@ -26,6 +26,8 @@ type Client struct {
 
 	plugin         SIP003Plugin
 	pluginOverride net.Destination
+	stream         StreamPlugin
+	protocol       ProtocolPlugin
 }
 
 func (c *Client) Close() error {
@@ -68,23 +70,34 @@ func NewClient(ctx context.Context, config *ClientConfig) (*Client, error) {
 		} else {
 			plugin = pluginLoader(config.Plugin)
 		}
+		if sp, ok := plugin.(StreamPlugin); ok {
+			client.stream = sp
 
-		port, err := net.GetFreePort()
-		if err != nil {
-			return nil, newError("failed to get free port for shadowsocks plugin").Base(err)
+			if err := plugin.Init("", "", s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
+				return nil, newError("failed to start plugin").Base(err)
+			}
+
+			if pp, ok := plugin.(ProtocolPlugin); ok {
+				client.protocol = pp
+			}
+		} else {
+			port, err := net.GetFreePort()
+			if err != nil {
+				return nil, newError("failed to get free port for shadowsocks plugin").Base(err)
+			}
+
+			client.pluginOverride = net.Destination{
+				Network: net.Network_TCP,
+				Address: net.LocalHostIP,
+				Port:    net.Port(port),
+			}
+
+			if err := plugin.Init(net.LocalHostIP.String(), strconv.Itoa(port), s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
+				return nil, newError("failed to start plugin").Base(err)
+			}
+
+			client.plugin = plugin
 		}
-
-		client.pluginOverride = net.Destination{
-			Network: net.Network_TCP,
-			Address: net.LocalHostIP,
-			Port:    net.Port(port),
-		}
-
-		if err := plugin.Init(net.LocalHostIP.String(), strconv.Itoa(port), s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
-			return nil, newError("failed to start plugin").Base(err)
-		}
-
-		client.plugin = plugin
 	}
 	return client, nil
 }
@@ -100,9 +113,15 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 
 	var server *protocol.ServerSpec
 	var conn internet.Connection
+	var user *protocol.MemoryUser
 
 	err := retry.ExponentialBackoff(2, 100).On(func() error {
 		server = c.serverPicker.PickServer()
+		user = server.PickUser()
+		_, ok := user.Account.(*MemoryAccount)
+		if !ok {
+			return newError("user account is not valid")
+		}
 		var dest net.Destination
 		if network == net.Network_TCP && c.plugin != nil {
 			dest = c.pluginOverride
@@ -115,13 +134,18 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		if err != nil {
 			return err
 		}
-		conn = rawConn
+		if c.stream != nil {
+			conn = c.stream.StreamConn(rawConn)
+		} else {
+			conn = rawConn
+		}
 
 		return nil
 	})
 	if err != nil {
 		return newError("failed to find an available destination").AtWarning().Base(err)
 	}
+
 	newError("tunneling request to ", destination, " via ", server.Destination()).WriteToLog(session.ExportIDToError(ctx))
 
 	defer conn.Close()
@@ -137,11 +161,6 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		request.Command = protocol.RequestCommandUDP
 	}
 
-	user := server.PickUser()
-	_, ok := user.Account.(*MemoryAccount)
-	if !ok {
-		return newError("user account is not valid")
-	}
 	request.User = user
 
 	sessionPolicy := c.policyManager.ForLevel(user.Level)
@@ -149,10 +168,11 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	timer := signal.CancelAfterInactivity(ctx, cancel, sessionPolicy.Timeouts.ConnectionIdle)
 
 	if request.Command == protocol.RequestCommandTCP {
+
 		requestDone := func() error {
 			defer timer.SetTimeout(sessionPolicy.Timeouts.DownlinkOnly)
 			bufferedWriter := buf.NewBufferedWriter(buf.NewWriter(conn))
-			bodyWriter, err := WriteTCPRequest(request, bufferedWriter)
+			bodyWriter, err := WriteTCPRequest(request, bufferedWriter, c.protocol)
 			if err != nil {
 				return newError("failed to write request").Base(err)
 			}
@@ -171,7 +191,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		responseDone := func() error {
 			defer timer.SetTimeout(sessionPolicy.Timeouts.UplinkOnly)
 
-			responseReader, err := ReadTCPResponse(user, conn)
+			responseReader, err := ReadTCPResponse(user, conn, c.protocol)
 			if err != nil {
 				return err
 			}
@@ -191,6 +211,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		writer := &UDPWriter{
 			Writer:  conn,
 			Request: request,
+			Plugin:  c.protocol,
 		}
 
 		requestDone := func() error {
@@ -208,6 +229,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 			reader := &UDPReader{
 				Reader: conn,
 				User:   user,
+				Plugin: c.protocol,
 			}
 
 			if err := buf.Copy(reader, link.Writer, buf.UpdateActivity(timer)); err != nil {

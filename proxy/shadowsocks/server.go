@@ -36,6 +36,8 @@ type Server struct {
 	plugin         SIP003Plugin
 	pluginOverride net.Destination
 	receiverPort   int
+	stream         StreamPlugin
+	protocol       ProtocolPlugin
 }
 
 func (s *Server) Initialize(self inbound.Handler) {
@@ -79,44 +81,55 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 			plugin = pluginLoader(config.Plugin)
 		}
 
-		port, err := net.GetFreePort()
-		if err != nil {
-			return nil, newError("failed to get free port for shadowsocks plugin").Base(err)
+		if sp, ok := plugin.(StreamPlugin); ok {
+			s.stream = sp
+
+			if err := plugin.Init("", "", "", "", config.PluginOpts, config.PluginArgs, mUser.Account.(*MemoryAccount)); err != nil {
+				return nil, newError("failed to start plugin").Base(err)
+			}
+			if pp, ok := plugin.(ProtocolPlugin); ok {
+				s.protocol = pp
+			}
+		} else {
+			port, err := net.GetFreePort()
+			if err != nil {
+				return nil, newError("failed to get free port for shadowsocks plugin").Base(err)
+			}
+
+			s.receiverPort, err = net.GetFreePort()
+			if err != nil {
+				return nil, newError("failed to get free port for shadowsocks plugin receiver").Base(err)
+			}
+
+			u := uuid.New()
+			tag := "v2ray.system.shadowsocks-inbound-plugin-receiver." + u.String()
+			s.pluginTag = tag
+
+			handler, err := app_inbound.NewAlwaysOnInboundHandlerWithProxy(ctx, tag, &proxyman.ReceiverConfig{
+				Listen:    net.NewIPOrDomain(net.LocalHostIP),
+				PortRange: net.SinglePortRange(net.Port(s.receiverPort)),
+			}, s, true)
+			if err != nil {
+				return nil, newError("failed to create shadowsocks plugin inbound").Base(err)
+			}
+
+			inboundManager := v.GetFeature(inbound.ManagerType()).(inbound.Manager)
+			if err := inboundManager.AddHandler(ctx, handler); err != nil {
+				return nil, newError("failed to add shadowsocks plugin inbound").Base(err)
+			}
+
+			s.pluginOverride = net.Destination{
+				Network: net.Network_TCP,
+				Address: net.LocalHostIP,
+				Port:    net.Port(port),
+			}
+
+			if err := plugin.Init(net.LocalHostIP.String(), strconv.Itoa(s.receiverPort), net.LocalHostIP.String(), strconv.Itoa(port), config.PluginOpts, config.PluginArgs, mUser.Account.(*MemoryAccount)); err != nil {
+				return nil, newError("failed to start plugin").Base(err)
+			}
+
+			s.plugin = plugin
 		}
-
-		s.receiverPort, err = net.GetFreePort()
-		if err != nil {
-			return nil, newError("failed to get free port for shadowsocks plugin receiver").Base(err)
-		}
-
-		u := uuid.New()
-		tag := "v2ray.system.shadowsocks-inbound-plugin-receiver." + u.String()
-		s.pluginTag = tag
-
-		handler, err := app_inbound.NewAlwaysOnInboundHandlerWithProxy(ctx, tag, &proxyman.ReceiverConfig{
-			Listen:    net.NewIPOrDomain(net.LocalHostIP),
-			PortRange: net.SinglePortRange(net.Port(s.receiverPort)),
-		}, s, true)
-		if err != nil {
-			return nil, newError("failed to create shadowsocks plugin inbound").Base(err)
-		}
-
-		inboundManager := v.GetFeature(inbound.ManagerType()).(inbound.Manager)
-		if err := inboundManager.AddHandler(ctx, handler); err != nil {
-			return nil, newError("failed to add shadowsocks plugin inbound").Base(err)
-		}
-
-		s.pluginOverride = net.Destination{
-			Network: net.Network_TCP,
-			Address: net.LocalHostIP,
-			Port:    net.Port(port),
-		}
-
-		if err := plugin.Init(net.LocalHostIP.String(), strconv.Itoa(s.receiverPort), net.LocalHostIP.String(), strconv.Itoa(port), config.PluginOpts, config.PluginArgs, mUser.Account.(*MemoryAccount)); err != nil {
-			return nil, newError("failed to start plugin").Base(err)
-		}
-
-		s.plugin = plugin
 	}
 
 	return s, nil
@@ -154,6 +167,11 @@ func (s *Server) handlerUDPPayload(ctx context.Context, conn internet.Connection
 		payload := packet.Payload
 		data, err := EncodeUDPPacket(request, payload.Bytes())
 		payload.Release()
+
+		if s.protocol != nil {
+			data, err = s.protocol.EncodePacket(data)
+		}
+
 		if err != nil {
 			newError("failed to encode UDP packet").Base(err).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 			return
@@ -177,7 +195,16 @@ func (s *Server) handlerUDPPayload(ctx context.Context, conn internet.Connection
 		}
 
 		for _, payload := range mpayload {
-			request, data, err := DecodeUDPPacket(s.user, payload)
+			var (
+				request *protocol.RequestHeader
+				data    *buf.Buffer
+			)
+			if s.protocol != nil {
+				payload, err = s.protocol.DecodePacket(payload)
+			}
+			if err == nil {
+				request, data, err = DecodeUDPPacket(s.user, payload)
+			}
 			if err != nil {
 				if inbound := session.InboundFromContext(ctx); inbound != nil && inbound.Source.IsValid() {
 					newError("dropping invalid UDP packet from: ", inbound.Source).Base(err).WriteToLog(session.ExportIDToError(ctx))
@@ -236,13 +263,15 @@ func (s *Server) handleConnection(ctx context.Context, conn internet.Connection,
 			return nil
 		}
 		inbound.Tag = s.tag
+	} else if s.stream != nil {
+		conn = s.stream.StreamConn(conn)
 	}
 
 	sessionPolicy := s.policyManager.ForLevel(s.user.Level)
 	conn.SetReadDeadline(time.Now().Add(sessionPolicy.Timeouts.Handshake))
 
 	bufferedReader := buf.BufferedReader{Reader: buf.NewReader(conn)}
-	request, bodyReader, err := ReadTCPSession(s.user, &bufferedReader)
+	request, bodyReader, err := ReadTCPSession(s.user, &bufferedReader, s.protocol)
 	if err != nil {
 		log.Record(&log.AccessMessage{
 			From:   conn.RemoteAddr(),
@@ -279,7 +308,7 @@ func (s *Server) handleConnection(ctx context.Context, conn internet.Connection,
 		defer timer.SetTimeout(sessionPolicy.Timeouts.UplinkOnly)
 
 		bufferedWriter := buf.NewBufferedWriter(buf.NewWriter(conn))
-		responseWriter, err := WriteTCPResponse(request, bufferedWriter)
+		responseWriter, err := WriteTCPResponse(request, bufferedWriter, s.protocol)
 		if err != nil {
 			return newError("failed to write response").Base(err)
 		}

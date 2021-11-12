@@ -2,6 +2,8 @@ package shadowsocks
 
 import (
 	"github.com/v2fly/v2ray-core/v5/common"
+	"github.com/v2fly/v2ray-core/v5/common/buf"
+	"github.com/v2fly/v2ray-core/v5/transport/internet"
 )
 
 var (
@@ -24,4 +26,15 @@ func RegisterPlugin(name string, creator func() SIP003Plugin) {
 type SIP003Plugin interface {
 	Init(localHost string, localPort string, remoteHost string, remotePort string, pluginOpts string, pluginArgs []string, account *MemoryAccount) error
 	common.Closable
+}
+
+type StreamPlugin interface {
+	StreamConn(conn internet.Connection) internet.Connection
+}
+
+type ProtocolPlugin interface {
+	StreamReader(reader buf.Reader, iv []byte) (buf.Reader, error)
+	StreamWriter(writer buf.Writer, iv []byte) (buf.Writer, error)
+	EncodePacket(buffer *buf.Buffer) (*buf.Buffer, error)
+	DecodePacket(buffer *buf.Buffer) (*buf.Buffer, error)
 }

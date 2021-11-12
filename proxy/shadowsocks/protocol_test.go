@@ -118,12 +118,12 @@ func TestTCPRequest(t *testing.T) {
 		cache := buf.New()
 		defer cache.Release()
 
-		writer, err := WriteTCPRequest(request, cache)
+		writer, err := WriteTCPRequest(request, cache, nil)
 		common.Must(err)
 
 		common.Must(writer.WriteMultiBuffer(buf.MultiBuffer{data}))
 
-		decodedRequest, reader, err := ReadTCPSession(request.User, cache)
+		decodedRequest, reader, err := ReadTCPSession(request.User, cache, nil)
 		common.Must(err)
 		if equalRequestHeader(decodedRequest, request) == false {
 			t.Error("different request")
