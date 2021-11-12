@@ -7,8 +7,8 @@
 package wireguard
 
 import (
-	net "github.com/v2fly/v2ray-core/v4/common/net"
-	_ "github.com/v2fly/v2ray-core/v4/common/protoext"
+	net "github.com/v2fly/v2ray-core/v5/common/net"
+	_ "github.com/v2fly/v2ray-core/v5/common/protoext"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

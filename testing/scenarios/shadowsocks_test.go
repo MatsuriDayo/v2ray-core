@@ -32,7 +32,7 @@ func TestShadowsocksChaCha20Poly1305TCP(t *testing.T) {
 
 	account := serial.ToTypedMessage(&shadowsocks.Account{
 		Password:   "shadowsocks-password",
-		CipherType: shadowsocks.CipherType_CHACHA20_POLY1305,
+		CipherType: shadowsocks.CipherType_CHACHA20_IETF_POLY1305,
 	})
 
 	serverPort := tcp.PickPort()
