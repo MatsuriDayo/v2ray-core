@@ -57,10 +57,15 @@ func NewDoHNameServer(url *url.URL, dispatcher routing.Dispatcher) (*DoHNameServ
 		IdleConnTimeout:     90 * time.Second,
 		TLSHandshakeTimeout: 30 * time.Second,
 		ForceAttemptHTTP2:   true,
+		// ctx from req.WithContext() from sendQuery()
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dest, err := net.ParseDestination(network + ":" + addr)
 			if err != nil {
 				return nil, err
+			}
+
+			if dailCtx, ok := ctx.Value("dailCtx").(context.Context); ok {
+				ctx = dailCtx
 			}
 
 			link, err := dispatcher.Dispatch(ctx, dest)
@@ -225,18 +230,24 @@ func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, clientIP n
 			// may cause reqs all aborted if any one encounter an error
 			dnsCtx := ctx
 
+			// new: use new context for proxyman (for socks outbound keepalive)
+			dailCtx := context.Background()
+
 			// reserve internal dns server requested Inbound
 			if inbound := session.InboundFromContext(ctx); inbound != nil {
-				dnsCtx = session.ContextWithInbound(dnsCtx, inbound)
+				dailCtx = session.ContextWithInbound(dailCtx, inbound)
 			}
 
-			dnsCtx = session.ContextWithContent(dnsCtx, &session.Content{
+			dailCtx = session.ContextWithContent(dailCtx, &session.Content{
 				Protocol:       "https",
 				SkipDNSResolve: true,
 			})
 
-			// forced to use mux for DOH
-			dnsCtx = session.ContextWithMuxPrefered(dnsCtx, true)
+			// forced to use mux for DOH (for vmess outbound keepalive)
+			dailCtx = session.ContextWithMuxPrefered(dailCtx, true)
+
+			// pass dailCtx to dailer
+			dnsCtx = context.WithValue(dnsCtx, "dailCtx", dailCtx)
 
 			var cancel context.CancelFunc
 			dnsCtx, cancel = context.WithDeadline(dnsCtx, deadline)
