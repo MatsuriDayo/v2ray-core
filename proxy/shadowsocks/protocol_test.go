@@ -1,6 +1,8 @@
 package shadowsocks_test
 
 import (
+	"crypto/rand"
+	"github.com/v2fly/v2ray-core/v5/common/errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -118,7 +120,18 @@ func TestTCPRequest(t *testing.T) {
 		cache := buf.New()
 		defer cache.Release()
 
-		writer, err := WriteTCPRequest(request, cache, nil)
+		var iv []byte
+		var err error
+		account := request.User.Account.(*MemoryAccount)
+		if account.Cipher.IVSize() > 0 {
+			iv = make([]byte, account.Cipher.IVSize())
+			common.Must2(rand.Read(iv))
+			if ivError := account.CheckIV(iv); ivError != nil {
+				err = errors.New("failed to mark outgoing iv").Base(ivError)
+			}
+		}
+
+		writer, err := WriteTCPRequest(request, cache, iv, nil)
 		common.Must(err)
 
 		common.Must(writer.WriteMultiBuffer(buf.MultiBuffer{data}))
