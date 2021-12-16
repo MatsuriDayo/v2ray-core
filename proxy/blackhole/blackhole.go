@@ -52,7 +52,6 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, _ internet.
 			// Sleep a little here to make sure the response is sent to client.
 			time.Sleep(time.Second)
 		}
-		common.Interrupt(link.Writer)
 	} else {
 		ctx, cancel := context.WithTimeout(ctx, h.timeout)
 		task.Run(ctx, func() error {
