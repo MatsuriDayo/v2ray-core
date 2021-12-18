@@ -33,6 +33,7 @@ type Client struct {
 	skipFallback bool
 	concurrent   bool
 	domains      []string
+	uidList      *net.UidList
 	expectIPs    []*router.GeoIPMatcher
 }
 
@@ -155,6 +156,7 @@ func NewClient(ctx context.Context, ns *NameServer, clientIP net.IP, container r
 		client.skipFallback = ns.SkipFallback
 		client.concurrent = ns.Concurrent
 		client.domains = rules
+		client.uidList = ns.UidList
 		client.expectIPs = matchers
 		return nil
 	})

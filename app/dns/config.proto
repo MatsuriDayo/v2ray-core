@@ -8,6 +8,7 @@ option java_multiple_files = true;
 
 import "common/net/address.proto";
 import "common/net/destination.proto";
+import "common/net/uid.proto";
 import "app/router/config.proto";
 
 message NameServer {
@@ -29,6 +30,7 @@ message NameServer {
   repeated PriorityDomain prioritized_domain = 2;
   repeated v2ray.core.app.router.GeoIP geoip = 3;
   repeated OriginalRule original_rules = 4;
+  v2ray.core.common.net.UidList uid_list = 12;
 }
 
 enum DomainMatchingType {

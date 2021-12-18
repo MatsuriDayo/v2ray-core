@@ -23,6 +23,7 @@ type NameServerConfig struct {
 	SkipFallback bool
 	Concurrent   bool
 	Domains      []string
+	UidList      cfgcommon.UidList
 	ExpectIPs    cfgcommon.StringList
 
 	cfgctx context.Context
@@ -40,6 +41,7 @@ func (c *NameServerConfig) UnmarshalJSON(data []byte) (err error) {
 			SkipFallback bool                 `json:"skipFallback"`
 			Concurrent   bool                 `json:"concurrent"`
 			Domains      []string             `json:"domains"`
+			UidList      cfgcommon.UidList    `json:"uidList"`
 			ExpectIPs    cfgcommon.StringList `json:"expectIps"`
 		}
 		if err = json.Unmarshal(data, &advanced); err == nil {
@@ -50,6 +52,7 @@ func (c *NameServerConfig) UnmarshalJSON(data []byte) (err error) {
 			c.Concurrent = advanced.Concurrent
 			c.Domains = advanced.Domains
 			c.ExpectIPs = advanced.ExpectIPs
+			c.UidList = advanced.UidList
 		}
 	}
 
@@ -137,6 +140,7 @@ func (c *NameServerConfig) Build() (*dns.NameServer, error) {
 		PrioritizedDomain: domains,
 		Geoip:             geoipList,
 		OriginalRules:     originalRules,
+		UidList:           c.UidList.Build(),
 	}, nil
 }
 
