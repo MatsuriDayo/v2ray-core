@@ -120,6 +120,10 @@ type compositeResult struct {
 }
 
 func (c compositeResult) Protocol() string {
+	d := c.domainResult.Protocol()
+	if d == "fakedns" { // maybe fakedns should have a higher priority
+		return d
+	}
 	return c.protocolResult.Protocol()
 }
 

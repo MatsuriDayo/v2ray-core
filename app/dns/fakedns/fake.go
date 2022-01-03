@@ -79,19 +79,25 @@ func (fkdns *Holder) initializeFromConfig() error {
 	return fkdns.initialize(fkdns.config.IpPool, int(fkdns.config.LruSize))
 }
 
+// Masturi: skip first ip because it's used by tun
+const skipFirstIPs = 1
+
+func (fkdns *Holder) getFirstIP(ipaddr gonet.IP) (currentIP *big.Int) {
+	currentIP = big.NewInt(0).SetBytes(ipaddr)
+	if ipaddr.To4() != nil {
+		currentIP = big.NewInt(0).SetBytes(ipaddr.To4())
+	}
+	currentIP = currentIP.Add(currentIP, big.NewInt(skipFirstIPs))
+	return
+}
+
 func (fkdns *Holder) initialize(ipPoolCidr string, lruSize int) error {
 	var ipRange *gonet.IPNet
 	var ipaddr gonet.IP
-	var currentIP *big.Int
 	var err error
 
 	if ipaddr, ipRange, err = gonet.ParseCIDR(ipPoolCidr); err != nil {
 		return newError("Unable to parse CIDR for Fake DNS IP assignment").Base(err).AtError()
-	}
-
-	currentIP = big.NewInt(0).SetBytes(ipaddr)
-	if ipaddr.To4() != nil {
-		currentIP = big.NewInt(0).SetBytes(ipaddr.To4())
 	}
 
 	ones, bits := ipRange.Mask.Size()
@@ -101,7 +107,7 @@ func (fkdns *Holder) initialize(ipPoolCidr string, lruSize int) error {
 	}
 	fkdns.domainToIP = cache.NewLru(lruSize)
 	fkdns.ipRange = ipRange
-	fkdns.nextIP = currentIP
+	fkdns.nextIP = fkdns.getFirstIP(ipaddr)
 	return nil
 }
 
@@ -116,7 +122,7 @@ func (fkdns *Holder) GetFakeIPForDomain(domain string) []net.Address {
 
 		fkdns.nextIP = fkdns.nextIP.Add(fkdns.nextIP, big.NewInt(1))
 		if !fkdns.ipRange.Contains(fkdns.nextIP.Bytes()) {
-			fkdns.nextIP = big.NewInt(0).SetBytes(fkdns.ipRange.IP)
+			fkdns.nextIP = fkdns.getFirstIP(fkdns.ipRange.IP)
 		}
 
 		// if we run for a long time, we may go back to beginning and start seeing the IP in use
