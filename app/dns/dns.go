@@ -12,17 +12,20 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/v2fly/v2ray-core/v5/common/platform"
+	"github.com/v2fly/v2ray-core/v5/infra/conf/cfgcommon"
+	"github.com/v2fly/v2ray-core/v5/infra/conf/geodata"
+
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
+
 	"github.com/v2fly/v2ray-core/v5/app/router"
 	"github.com/v2fly/v2ray-core/v5/common"
 	"github.com/v2fly/v2ray-core/v5/common/errors"
 	"github.com/v2fly/v2ray-core/v5/common/net"
-	"github.com/v2fly/v2ray-core/v5/common/platform"
 	"github.com/v2fly/v2ray-core/v5/common/session"
 	"github.com/v2fly/v2ray-core/v5/common/strmatcher"
 	"github.com/v2fly/v2ray-core/v5/features"
 	"github.com/v2fly/v2ray-core/v5/features/dns"
-	"github.com/v2fly/v2ray-core/v5/infra/conf/cfgcommon"
-	"github.com/v2fly/v2ray-core/v5/infra/conf/geodata"
 )
 
 // DNS is a DNS rely server.
@@ -174,12 +177,12 @@ func (s *DNS) IsOwnLink(ctx context.Context) bool {
 }
 
 // LookupIP implements dns.Client.
-func (s *DNS) LookupIP(domain string) ([]net.IP, error) {
+func (s *DNS) LookupIP(domain dns.MatsuriDomainString) ([]net.IP, error) {
 	return s.lookupIPInternal(domain, *s.ipOption)
 }
 
 // LookupIPv4 implements dns.IPv4Lookup.
-func (s *DNS) LookupIPv4(domain string) ([]net.IP, error) {
+func (s *DNS) LookupIPv4(domain dns.MatsuriDomainString) ([]net.IP, error) {
 	if !s.ipOption.IPv4Enable {
 		return nil, dns.ErrEmptyResponse
 	}
@@ -189,7 +192,7 @@ func (s *DNS) LookupIPv4(domain string) ([]net.IP, error) {
 }
 
 // LookupIPv6 implements dns.IPv6Lookup.
-func (s *DNS) LookupIPv6(domain string) ([]net.IP, error) {
+func (s *DNS) LookupIPv6(domain dns.MatsuriDomainString) ([]net.IP, error) {
 	if !s.ipOption.IPv6Enable {
 		return nil, dns.ErrEmptyResponse
 	}
@@ -198,7 +201,37 @@ func (s *DNS) LookupIPv6(domain string) ([]net.IP, error) {
 	return s.lookupIPInternal(domain, o)
 }
 
-func (s *DNS) lookupIPInternal(domain string, option dns.IPOption) ([]net.IP, error) {
+// LookupHosts implements dns.HostsLookup.
+func (s *DNS) LookupHosts(domain string) *net.Address {
+	domain = strings.TrimSuffix(domain, ".")
+	if domain == "" {
+		return nil
+	}
+	// Normalize the FQDN form query
+	addrs := s.hosts.Lookup(domain, *s.ipOption)
+	if len(addrs) > 0 {
+		newError("domain replaced: ", domain, " -> ", addrs[0].String()).AtInfo().WriteToLog()
+		return &addrs[0]
+	}
+
+	return nil
+}
+
+func (s *DNS) lookupIPInternal(_domain dns.MatsuriDomainString, option dns.IPOption) ([]net.IP, error) {
+	// Masuri: hook
+	var domain string
+	var ex *dns.MatsuriDomainStringEx
+
+	if a, ok := _domain.(*dns.MatsuriDomainStringEx); ok {
+		ex = a
+		domain = a.Domain
+	} else if a, ok := _domain.(string); ok {
+		domain = a
+	} else {
+		panic("lookupIPInternal: invaild argument")
+	}
+	// End of matsuri hook
+
 	if domain == "" {
 		return nil, newError("empty domain name")
 	}
@@ -223,7 +256,7 @@ func (s *DNS) lookupIPInternal(domain string, option dns.IPOption) ([]net.IP, er
 	// Name servers lookup
 	errs := []error{}
 	ctx := session.ContextWithInbound(s.ctx, &session.Inbound{Tag: s.tag})
-	for _, client := range s.sortClients(domain) {
+	for _, client := range s.sortClients(domain, ex) {
 		if !option.FakeEnable && strings.EqualFold(client.Name(), "FakeDNS") {
 			newError("skip DNS resolution for domain ", domain, " at server ", client.Name()).AtDebug().WriteToLog()
 			continue
@@ -260,26 +293,48 @@ func (s *DNS) SetFakeDNSOption(isFakeEnable bool) {
 	s.ipOption.FakeEnable = isFakeEnable
 }
 
-func (s *DNS) sortClients(domain string) []*Client {
+func (s *DNS) sortClients(domain string, ex *dns.MatsuriDomainStringEx) []*Client {
 	clients := make([]*Client, 0, len(s.clients))
 	clientUsed := make([]bool, len(s.clients))
 	clientNames := make([]string, 0, len(s.clients))
 	domainRules := []string{}
+	hasMatch := false
+
+	// Matsuri: Uid matching before domain matching
+	if ex != nil && ex.OptInbound != nil {
+		uid := ex.OptInbound.Uid
+		for clientIdx, client := range s.clients {
+			if client == nil {
+				continue
+			}
+			if nekoutils.In(client.uidList.Uid, uid) {
+				domainRules = append(domainRules, fmt.Sprintf("Uid=%d (DNS idx:%d)", uid, clientIdx))
+				if clientUsed[clientIdx] {
+					continue
+				}
+				clientUsed[clientIdx] = true
+				clients = append(clients, client)
+				clientNames = append(clientNames, client.Name())
+				hasMatch = true
+			}
+		}
+	}
 
 	// Priority domain matching
-	hasMatch := false
-	for _, match := range s.domainMatcher.Match(domain) {
-		info := s.matcherInfos[match]
-		client := s.clients[info.clientIdx]
-		domainRule := client.domains[info.domainRuleIdx]
-		domainRules = append(domainRules, fmt.Sprintf("%s(DNS idx:%d)", domainRule, info.clientIdx))
-		if clientUsed[info.clientIdx] {
-			continue
+	if !hasMatch {
+		for _, match := range s.domainMatcher.Match(domain) {
+			info := s.matcherInfos[match]
+			client := s.clients[info.clientIdx]
+			domainRule := client.domains[info.domainRuleIdx]
+			domainRules = append(domainRules, fmt.Sprintf("%s(DNS idx:%d)", domainRule, info.clientIdx))
+			if clientUsed[info.clientIdx] {
+				continue
+			}
+			clientUsed[info.clientIdx] = true
+			clients = append(clients, client)
+			clientNames = append(clientNames, client.Name())
+			hasMatch = true
 		}
-		clientUsed[info.clientIdx] = true
-		clients = append(clients, client)
-		clientNames = append(clientNames, client.Name())
-		hasMatch = true
 	}
 
 	if !(s.disableFallback || s.disableFallbackIfMatch && hasMatch) {

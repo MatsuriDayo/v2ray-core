@@ -11,6 +11,7 @@ import "common/net/destination.proto";
 import "app/router/routercommon/common.proto";
 
 import "common/protoext/extensions.proto";
+import "common/net/uid.proto";
 
 message NameServer {
   v2ray.core.common.net.Endpoint address = 1;
@@ -30,6 +31,7 @@ message NameServer {
   repeated PriorityDomain prioritized_domain = 2;
   repeated v2ray.core.app.router.routercommon.GeoIP geoip = 3;
   repeated OriginalRule original_rules = 4;
+  v2ray.core.common.net.UidList uid_list = 12;
 }
 
 enum DomainMatchingType {

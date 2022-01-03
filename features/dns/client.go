@@ -4,6 +4,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/errors"
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/serial"
+	"github.com/v2fly/v2ray-core/v5/common/session"
 	"github.com/v2fly/v2ray-core/v5/features"
 )
 
@@ -14,6 +15,16 @@ type IPOption struct {
 	FakeEnable bool
 }
 
+// Matsuri: it's a string before.
+type MatsuriDomainString interface {
+}
+
+// Matsuri: private options for Lookup
+type MatsuriDomainStringEx struct {
+	Domain     string
+	OptInbound *session.Inbound
+}
+
 // Client is a V2Ray feature for querying DNS information.
 //
 // v2ray:api:stable
@@ -21,21 +32,21 @@ type Client interface {
 	features.Feature
 
 	// LookupIP returns IP address for the given domain. IPs may contain IPv4 and/or IPv6 addresses.
-	LookupIP(domain string) ([]net.IP, error)
+	LookupIP(domain MatsuriDomainString) ([]net.IP, error)
 }
 
 // IPv4Lookup is an optional feature for querying IPv4 addresses only.
 //
 // v2ray:api:beta
 type IPv4Lookup interface {
-	LookupIPv4(domain string) ([]net.IP, error)
+	LookupIPv4(domain MatsuriDomainString) ([]net.IP, error)
 }
 
 // IPv6Lookup is an optional feature for querying IPv6 addresses only.
 //
 // v2ray:api:beta
 type IPv6Lookup interface {
-	LookupIPv6(domain string) ([]net.IP, error)
+	LookupIPv6(domain MatsuriDomainString) ([]net.IP, error)
 }
 
 // ClientWithIPOption is an optional feature for querying DNS information.

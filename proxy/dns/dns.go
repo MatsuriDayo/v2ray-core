@@ -196,7 +196,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 			if !h.isOwnLink(ctx) {
 				isIPQuery, domain, id, qType := parseIPQuery(b.Bytes())
 				if isIPQuery {
-					go h.handleIPQuery(id, qType, domain, writer, fakeDNS)
+					go h.handleIPQuery(id, qType, domain, writer, fakeDNS, inbound)
 					continue
 				}
 			}
@@ -233,7 +233,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 	return nil
 }
 
-func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter, fakedns bool) {
+func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter, fakedns bool, inbound *session.Inbound) {
 	var ips []net.IP
 	var err error
 
@@ -246,11 +246,17 @@ func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string,
 		newError("dns.Client doesn't implement ClientWithIPOption")
 	}
 
+	// Matsuri: hook
+	mdomain := &dns.MatsuriDomainStringEx{
+		Domain:     domain,
+		OptInbound: inbound,
+	}
+
 	switch qType {
 	case dnsmessage.TypeA:
-		ips, err = h.ipv4Lookup.LookupIPv4(domain)
+		ips, err = h.ipv4Lookup.LookupIPv4(mdomain)
 	case dnsmessage.TypeAAAA:
-		ips, err = h.ipv6Lookup.LookupIPv6(domain)
+		ips, err = h.ipv6Lookup.LookupIPv6(mdomain)
 	}
 
 	rcode := dns.RCodeFromError(err)
