@@ -8,15 +8,15 @@ import (
 	_ "github.com/v2fly/v2ray-core/v5/app/proxyman/inbound"
 	_ "github.com/v2fly/v2ray-core/v5/app/proxyman/outbound"
 
-	// Default commander and all its services. This is an optional feature.
-	_ "github.com/v2fly/v2ray-core/v5/app/commander"
-	_ "github.com/v2fly/v2ray-core/v5/app/log/command"
-	_ "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
-	_ "github.com/v2fly/v2ray-core/v5/app/stats/command"
+	// // Default commander and all its services. This is an optional feature.
+	// _ "github.com/v2fly/v2ray-core/v5/app/commander"
+	// _ "github.com/v2fly/v2ray-core/v5/app/log/command"
+	// _ "github.com/v2fly/v2ray-core/v5/app/proxyman/command"
+	// _ "github.com/v2fly/v2ray-core/v5/app/stats/command"
 
-	// Developer preview services
-	_ "github.com/v2fly/v2ray-core/v5/app/instman/command"
-	_ "github.com/v2fly/v2ray-core/v5/app/observatory/command"
+	// // Developer preview services
+	// _ "github.com/v2fly/v2ray-core/v5/app/instman/command"
+	// _ "github.com/v2fly/v2ray-core/v5/app/observatory/command"
 
 	// Other optional features.
 	_ "github.com/v2fly/v2ray-core/v5/app/dns"
@@ -31,9 +31,9 @@ import (
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/tagged/taggedimpl"
 
 	// Developer preview features
-	_ "github.com/v2fly/v2ray-core/v5/app/instman"
+	// _ "github.com/v2fly/v2ray-core/v5/app/instman"
 	_ "github.com/v2fly/v2ray-core/v5/app/observatory"
-	_ "github.com/v2fly/v2ray-core/v5/app/restfulapi"
+	// _ "github.com/v2fly/v2ray-core/v5/app/restfulapi"
 
 	// Inbound and outbound proxies.
 	_ "github.com/v2fly/v2ray-core/v5/proxy/blackhole"
@@ -46,8 +46,8 @@ import (
 	_ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/plugin/self"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/socks"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/trojan"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/vless/inbound"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/vless/outbound"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/vless/inbound"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy//outbound"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/vmess/inbound"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/vmess/outbound"
 
@@ -78,22 +78,22 @@ import (
 	// JSON, TOML, YAML config support. (jsonv4) This disable selective compile
 	_ "github.com/v2fly/v2ray-core/v5/main/formats"
 
-	// commands
-	_ "github.com/v2fly/v2ray-core/v5/main/commands/all"
+	// // commands
+	// _ "github.com/v2fly/v2ray-core/v5/main/commands/all"
 
-	// engineering commands
-	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/engineering"
+	// // engineering commands
+	// _ "github.com/v2fly/v2ray-core/v5/main/commands/all/engineering"
 
-	// Commands that rely on jsonv4 format This disable selective compile
-	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/api/jsonv4"
-	_ "github.com/v2fly/v2ray-core/v5/main/commands/all/jsonv4"
+	// // Commands that rely on jsonv4 format This disable selective compile
+	// _ "github.com/v2fly/v2ray-core/v5/main/commands/all/api/jsonv4"
+	// _ "github.com/v2fly/v2ray-core/v5/main/commands/all/jsonv4"
 
 	// V5 version of json configure file parser
 	_ "github.com/v2fly/v2ray-core/v5/infra/conf/v5cfg"
 
-	// Simplified config
-	_ "github.com/v2fly/v2ray-core/v5/proxy/http/simplified"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/simplified"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/socks/simplified"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/trojan/simplified"
+	// // Simplified config
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/http/simplified"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/simplified"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/socks/simplified"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/trojan/simplified"
 )
