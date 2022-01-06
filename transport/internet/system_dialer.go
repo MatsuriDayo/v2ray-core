@@ -59,9 +59,9 @@ func (d *DefaultSystemDialer) Dial(ctx context.Context, src net.Address, dest ne
 		if err != nil {
 			return nil, err
 		}
-		return &PacketConnWrapper{
-			Conn: packetConn,
-			Dest: destAddr,
+		return &packetConnWrapper{
+			conn: packetConn,
+			dest: destAddr,
 		}, nil
 	}
 	goStdKeepAlive := time.Duration(0)
@@ -111,50 +111,42 @@ func ApplySockopt(sockopt *SocketConfig, dest net.Destination, fd uintptr, ctx c
 	}
 }
 
-type PacketConnWrapper struct {
-	Conn net.PacketConn
-	Dest net.Addr
+type packetConnWrapper struct {
+	conn net.PacketConn
+	dest net.Addr
 }
 
-func (c *PacketConnWrapper) Close() error {
-	return c.Conn.Close()
+func (c *packetConnWrapper) Close() error {
+	return c.conn.Close()
 }
 
-func (c *PacketConnWrapper) LocalAddr() net.Addr {
-	return c.Conn.LocalAddr()
+func (c *packetConnWrapper) LocalAddr() net.Addr {
+	return c.conn.LocalAddr()
 }
 
-func (c *PacketConnWrapper) RemoteAddr() net.Addr {
-	return c.Dest
+func (c *packetConnWrapper) RemoteAddr() net.Addr {
+	return c.dest
 }
 
-func (c *PacketConnWrapper) Write(p []byte) (int, error) {
-	return c.Conn.WriteTo(p, c.Dest)
+func (c *packetConnWrapper) Write(p []byte) (int, error) {
+	return c.conn.WriteTo(p, c.dest)
 }
 
-func (c *PacketConnWrapper) Read(p []byte) (int, error) {
-	n, _, err := c.Conn.ReadFrom(p)
+func (c *packetConnWrapper) Read(p []byte) (int, error) {
+	n, _, err := c.conn.ReadFrom(p)
 	return n, err
 }
 
-func (c *PacketConnWrapper) WriteTo(p []byte, d net.Addr) (int, error) {
-	return c.Conn.WriteTo(p, d)
+func (c *packetConnWrapper) SetDeadline(t time.Time) error {
+	return c.conn.SetDeadline(t)
 }
 
-func (c *PacketConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	return c.Conn.ReadFrom(p)
+func (c *packetConnWrapper) SetReadDeadline(t time.Time) error {
+	return c.conn.SetReadDeadline(t)
 }
 
-func (c *PacketConnWrapper) SetDeadline(t time.Time) error {
-	return c.Conn.SetDeadline(t)
-}
-
-func (c *PacketConnWrapper) SetReadDeadline(t time.Time) error {
-	return c.Conn.SetReadDeadline(t)
-}
-
-func (c *PacketConnWrapper) SetWriteDeadline(t time.Time) error {
-	return c.Conn.SetWriteDeadline(t)
+func (c *packetConnWrapper) SetWriteDeadline(t time.Time) error {
+	return c.conn.SetWriteDeadline(t)
 }
 
 type SystemDialerAdapter interface {

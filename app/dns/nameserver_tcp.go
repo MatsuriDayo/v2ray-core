@@ -51,9 +51,9 @@ func NewTCPNameServer(url *url.URL, dispatcher routing.Dispatcher) (*TCPNameServ
 			return nil, err
 		}
 
-		return buf.NewConnection(
-			buf.ConnectionInputMulti(link.Writer),
-			buf.ConnectionOutputMulti(link.Reader),
+		return net.NewConnection(
+			net.ConnectionInputMulti(link.Writer),
+			net.ConnectionOutputMulti(link.Reader),
 		), nil
 	}
 

@@ -164,7 +164,7 @@ func TestUDPReaderWriter(t *testing.T) {
 	cache := buf.New()
 	defer cache.Release()
 
-	writer := &UDPWriter{
+	writer := &buf.SequentialWriter{Writer: &UDPWriter{
 		Writer: cache,
 		Request: &protocol.RequestHeader{
 			Version: Version,
@@ -172,7 +172,7 @@ func TestUDPReaderWriter(t *testing.T) {
 			Port:    123,
 			User:    user,
 		},
-	}
+	}}
 
 	reader := &UDPReader{
 		Reader: cache,

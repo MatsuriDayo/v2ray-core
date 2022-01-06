@@ -267,13 +267,11 @@ func (v *UDPReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 		buffer = newBuffer
 	}
 
-	header, payload, err := DecodeUDPPacket(v.User, buffer)
+	_, payload, err := DecodeUDPPacket(v.User, buffer)
 	if err != nil {
 		buffer.Release()
 		return nil, err
 	}
-	endpoint := header.Destination()
-	payload.Endpoint = &endpoint
 	return buf.MultiBuffer{payload}, nil
 }
 
@@ -316,5 +314,7 @@ func (w *UDPWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
 			return err
 		}
 	}
-	return nil
+	_, err = w.Writer.Write(packet.Bytes())
+	packet.Release()
+	return len(payload), err
 }

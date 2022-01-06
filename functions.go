@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/v2fly/v2ray-core/v5/common"
-	"github.com/v2fly/v2ray-core/v5/common/buf"
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/features/routing"
 	"github.com/v2fly/v2ray-core/v5/transport/internet/udp"
@@ -57,13 +56,13 @@ func Dial(ctx context.Context, v *Instance, dest net.Destination) (net.Conn, err
 	if err != nil {
 		return nil, err
 	}
-	var readerOpt buf.ConnectionOption
+	var readerOpt net.ConnectionOption
 	if dest.Network == net.Network_TCP {
-		readerOpt = buf.ConnectionOutputMulti(r.Reader)
+		readerOpt = net.ConnectionOutputMulti(r.Reader)
 	} else {
-		readerOpt = buf.ConnectionOutputMultiUDP(r.Reader)
+		readerOpt = net.ConnectionOutputMultiUDP(r.Reader)
 	}
-	return buf.NewConnection(buf.ConnectionInputMulti(r.Writer), readerOpt), nil
+	return net.NewConnection(net.ConnectionInputMulti(r.Writer), readerOpt), nil
 }
 
 // DialUDP provides a way to exchange UDP packets through V2Ray instance to remote servers.

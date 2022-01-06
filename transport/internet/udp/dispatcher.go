@@ -6,10 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/v2fly/v2ray-core/v5/common"
 	"github.com/v2fly/v2ray-core/v5/common/buf"
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/protocol/udp"
 	"github.com/v2fly/v2ray-core/v5/common/session"
+	"github.com/v2fly/v2ray-core/v5/common/signal"
 	"github.com/v2fly/v2ray-core/v5/common/signal/done"
 	"github.com/v2fly/v2ray-core/v5/features/routing"
 	"github.com/v2fly/v2ray-core/v5/transport"
@@ -19,21 +21,32 @@ type ResponseCallback func(ctx context.Context, packet *udp.Packet)
 
 type connEntry struct {
 	link   *transport.Link
-	ctx    context.Context
+	timer  signal.ActivityUpdater
 	cancel context.CancelFunc
 }
 
 type Dispatcher struct {
 	sync.RWMutex
-	conn       *connEntry
+	conns      map[net.Destination]*connEntry
 	dispatcher routing.Dispatcher
 	callback   ResponseCallback
 }
 
 func NewDispatcher(dispatcher routing.Dispatcher, callback ResponseCallback) *Dispatcher {
 	return &Dispatcher{
+		conns:      make(map[net.Destination]*connEntry),
 		dispatcher: dispatcher,
 		callback:   callback,
+	}
+}
+
+func (v *Dispatcher) RemoveRay(dest net.Destination) {
+	v.Lock()
+	defer v.Unlock()
+	if conn, found := v.conns[dest]; found {
+		common.Close(conn.link.Reader)
+		common.Close(conn.link.Writer)
+		delete(v.conns, dest)
 	}
 }
 
@@ -41,34 +54,38 @@ func (v *Dispatcher) getInboundRay(ctx context.Context, dest net.Destination) *c
 	v.Lock()
 	defer v.Unlock()
 
-	if v.conn != nil {
-		select {
-		case <-v.conn.ctx.Done():
-		default:
-			return v.conn
-		}
+	if entry, found := v.conns[dest]; found {
+		return entry
 	}
 
 	newError("establishing new connection for ", dest).WriteToLog()
 
 	ctx, cancel := context.WithCancel(ctx)
+	removeRay := func() {
+		cancel()
+		v.RemoveRay(dest)
+	}
+	timer := signal.CancelAfterInactivity(ctx, removeRay, time.Second*4)
 	link, _ := v.dispatcher.Dispatch(ctx, dest)
 	entry := &connEntry{
 		link:   link,
-		ctx:    ctx,
-		cancel: cancel,
+		timer:  timer,
+		cancel: removeRay,
 	}
-	v.conn = entry
+	v.conns[dest] = entry
 	go handleInput(ctx, entry, dest, v.callback)
 	return entry
 }
 
 func (v *Dispatcher) Dispatch(ctx context.Context, destination net.Destination, payload *buf.Buffer) {
+	// TODO: Add user to destString
+	newError("dispatch request to: ", destination).AtDebug().WriteToLog(session.ExportIDToError(ctx))
+
 	conn := v.getInboundRay(ctx, destination)
 	outputStream := conn.link.Writer
 	if outputStream != nil {
 		if err := outputStream.WriteMultiBuffer(buf.MultiBuffer{payload}); err != nil {
-			newError("write udp failed").Base(err).WriteToLog(session.ExportIDToError(ctx))
+			newError("failed to write first UDP payload").Base(err).WriteToLog(session.ExportIDToError(ctx))
 			conn.cancel()
 			return
 		}
@@ -77,7 +94,9 @@ func (v *Dispatcher) Dispatch(ctx context.Context, destination net.Destination, 
 
 func handleInput(ctx context.Context, conn *connEntry, dest net.Destination, callback ResponseCallback) {
 	defer conn.cancel()
+
 	input := conn.link.Reader
+	timer := conn.timer
 
 	for {
 		select {
@@ -88,27 +107,20 @@ func handleInput(ctx context.Context, conn *connEntry, dest net.Destination, cal
 
 		mb, err := input.ReadMultiBuffer()
 		if err != nil {
-			buf.ReleaseMulti(mb)
-			newError("udp connection closed").Base(err).WriteToLog(session.ExportIDToError(ctx))
+			newError("failed to handle UDP input").Base(err).WriteToLog(session.ExportIDToError(ctx))
 			return
 		}
+		timer.Update()
 		for _, b := range mb {
-			packet := udp.Packet{
+			callback(ctx, &udp.Packet{
 				Payload: b,
 				Source:  dest,
-			}
-			if b.Endpoint == nil {
-				packet.Source = dest
-			} else {
-				packet.Source = *b.Endpoint
-			}
-			callback(ctx, &packet)
+			})
 		}
 	}
 }
 
 type dispatcherConn struct {
-	ctx        context.Context
 	dispatcher *Dispatcher
 	cache      chan *udp.Packet
 	done       *done.Instance
@@ -116,7 +128,6 @@ type dispatcherConn struct {
 
 func DialDispatcher(ctx context.Context, dispatcher routing.Dispatcher) (net.PacketConn, error) {
 	c := &dispatcherConn{
-		ctx:   ctx,
 		cache: make(chan *udp.Packet, 16),
 		done:  done.New(),
 	}
@@ -157,9 +168,8 @@ func (c *dispatcherConn) WriteTo(p []byte, addr net.Addr) (int, error) {
 	n := copy(raw, p)
 	buffer.Resize(0, int32(n))
 
-	endpoint := net.DestinationFromAddr(addr)
-	buffer.Endpoint = &endpoint
-	c.dispatcher.Dispatch(c.ctx, endpoint, buffer)
+	ctx := context.Background()
+	c.dispatcher.Dispatch(ctx, net.DestinationFromAddr(addr), buffer)
 	return n, nil
 }
 
