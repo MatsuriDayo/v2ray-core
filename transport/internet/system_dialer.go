@@ -9,8 +9,10 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/session"
 )
 
-var effectiveSystemDialer SystemDialer = &DefaultSystemDialer{}
-var effectiveSystemDNSDialer SystemDialer = &DefaultSystemDialer{}
+var (
+	effectiveSystemDialer    SystemDialer = &DefaultSystemDialer{}
+	effectiveSystemDNSDialer SystemDialer = &DefaultSystemDialer{}
+)
 
 type SystemDialer interface {
 	Dial(ctx context.Context, source net.Address, destination net.Destination, sockopt *SocketConfig) (net.Conn, error)
@@ -59,9 +61,9 @@ func (d *DefaultSystemDialer) Dial(ctx context.Context, src net.Address, dest ne
 		if err != nil {
 			return nil, err
 		}
-		return &packetConnWrapper{
-			conn: packetConn,
-			dest: destAddr,
+		return &PacketConnWrapper{
+			Conn: packetConn,
+			Dest: destAddr,
 		}, nil
 	}
 	goStdKeepAlive := time.Duration(0)
@@ -111,42 +113,50 @@ func ApplySockopt(sockopt *SocketConfig, dest net.Destination, fd uintptr, ctx c
 	}
 }
 
-type packetConnWrapper struct {
-	conn net.PacketConn
-	dest net.Addr
+type PacketConnWrapper struct {
+	Conn net.PacketConn
+	Dest net.Addr
 }
 
-func (c *packetConnWrapper) Close() error {
-	return c.conn.Close()
+func (c *PacketConnWrapper) Close() error {
+	return c.Conn.Close()
 }
 
-func (c *packetConnWrapper) LocalAddr() net.Addr {
-	return c.conn.LocalAddr()
+func (c *PacketConnWrapper) LocalAddr() net.Addr {
+	return c.Conn.LocalAddr()
 }
 
-func (c *packetConnWrapper) RemoteAddr() net.Addr {
-	return c.dest
+func (c *PacketConnWrapper) RemoteAddr() net.Addr {
+	return c.Dest
 }
 
-func (c *packetConnWrapper) Write(p []byte) (int, error) {
-	return c.conn.WriteTo(p, c.dest)
+func (c *PacketConnWrapper) Write(p []byte) (int, error) {
+	return c.Conn.WriteTo(p, c.Dest)
 }
 
-func (c *packetConnWrapper) Read(p []byte) (int, error) {
-	n, _, err := c.conn.ReadFrom(p)
+func (c *PacketConnWrapper) Read(p []byte) (int, error) {
+	n, _, err := c.Conn.ReadFrom(p)
 	return n, err
 }
 
-func (c *packetConnWrapper) SetDeadline(t time.Time) error {
-	return c.conn.SetDeadline(t)
+func (c *PacketConnWrapper) WriteTo(p []byte, d net.Addr) (int, error) {
+	return c.Conn.WriteTo(p, d)
 }
 
-func (c *packetConnWrapper) SetReadDeadline(t time.Time) error {
-	return c.conn.SetReadDeadline(t)
+func (c *PacketConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
+	return c.Conn.ReadFrom(p)
 }
 
-func (c *packetConnWrapper) SetWriteDeadline(t time.Time) error {
-	return c.conn.SetWriteDeadline(t)
+func (c *PacketConnWrapper) SetDeadline(t time.Time) error {
+	return c.Conn.SetDeadline(t)
+}
+
+func (c *PacketConnWrapper) SetReadDeadline(t time.Time) error {
+	return c.Conn.SetReadDeadline(t)
+}
+
+func (c *PacketConnWrapper) SetWriteDeadline(t time.Time) error {
+	return c.Conn.SetWriteDeadline(t)
 }
 
 type SystemDialerAdapter interface {

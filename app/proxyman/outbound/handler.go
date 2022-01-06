@@ -6,6 +6,7 @@ import (
 	core "github.com/v2fly/v2ray-core/v5"
 	"github.com/v2fly/v2ray-core/v5/app/proxyman"
 	"github.com/v2fly/v2ray-core/v5/common"
+	"github.com/v2fly/v2ray-core/v5/common/buf"
 	"github.com/v2fly/v2ray-core/v5/common/mux"
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/net/packetaddr"
@@ -231,7 +232,7 @@ func (h *Handler) Dial(ctx context.Context, dest net.Destination) (internet.Conn
 				downlinkReader, downlinkWriter := pipe.New(opts...)
 
 				go handler.Dispatch(ctx, &transport.Link{Reader: uplinkReader, Writer: downlinkWriter})
-				conn := net.NewConnection(net.ConnectionInputMulti(uplinkWriter), net.ConnectionOutputMulti(downlinkReader))
+				conn := buf.NewConnection(buf.ConnectionInputMulti(uplinkWriter), buf.ConnectionOutputMulti(downlinkReader))
 
 				if config := tls.ConfigFromStreamSettings(h.streamSettings); config != nil {
 					tlsConfig := config.GetTLSConfig(tls.WithDestination(dest))

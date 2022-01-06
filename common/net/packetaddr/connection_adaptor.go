@@ -24,7 +24,7 @@ func ToPacketAddrConn(link *transport.Link, dest net.Destination) (net.PacketCon
 		return nil, errNotPacketConn
 	}
 	switch dest.Address.Domain() {
-	case seqPacketMagicAddress:
+	case SeqPacketMagicAddress:
 		return &packetConnectionAdaptor{
 			readerAccess: &sync.Mutex{},
 			readerBuffer: nil,
@@ -40,7 +40,7 @@ func CreatePacketAddrConn(ctx context.Context, dispatcher routing.Dispatcher, is
 		return nil, errUnsupported
 	}
 	packetDest := net.Destination{
-		Address: net.DomainAddress(seqPacketMagicAddress),
+		Address: net.DomainAddress(SeqPacketMagicAddress),
 		Port:    0,
 		Network: net.Network_UDP,
 	}
@@ -117,14 +117,14 @@ func (c packetConnectionAdaptor) SetWriteDeadline(t time.Time) error {
 }
 
 func ToPacketAddrConnWrapper(conn net.PacketConn, isStream bool) FusedConnection {
-	return &packetConnWrapper{conn}
+	return &PacketConnWrapper{conn}
 }
 
-type packetConnWrapper struct {
+type PacketConnWrapper struct {
 	net.PacketConn
 }
 
-func (pc *packetConnWrapper) RemoteAddr() gonet.Addr {
+func (pc *PacketConnWrapper) RemoteAddr() gonet.Addr {
 	return nil
 }
 
@@ -133,7 +133,7 @@ type FusedConnection interface {
 	net.Conn
 }
 
-func (pc *packetConnWrapper) Read(p []byte) (n int, err error) {
+func (pc *PacketConnWrapper) Read(p []byte) (n int, err error) {
 	recbuf := buf.StackNew()
 	recbuf.Extend(2048)
 	n, addr, err := pc.PacketConn.ReadFrom(recbuf.Bytes())
@@ -150,7 +150,7 @@ func (pc *packetConnWrapper) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (pc *packetConnWrapper) Write(p []byte) (n int, err error) {
+func (pc *PacketConnWrapper) Write(p []byte) (n int, err error) {
 	data, addr, err := ExtractAddressFromPacket(buf.FromBytes(p))
 	if err != nil {
 		return 0, err
@@ -163,7 +163,7 @@ func (pc *packetConnWrapper) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (pc *packetConnWrapper) Close() error {
+func (pc *PacketConnWrapper) Close() error {
 	return pc.PacketConn.Close()
 }
 
@@ -172,7 +172,7 @@ func GetDestinationSubsetOf(dest net.Destination) (bool, error) {
 		return false, errNotPacketConn
 	}
 	switch dest.Address.Domain() {
-	case seqPacketMagicAddress:
+	case SeqPacketMagicAddress:
 		return false, nil
 	default:
 		return false, errNotPacketConn
