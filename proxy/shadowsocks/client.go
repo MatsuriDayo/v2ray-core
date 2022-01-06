@@ -10,6 +10,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common"
 	"github.com/v2fly/v2ray-core/v5/common/buf"
 	"github.com/v2fly/v2ray-core/v5/common/net"
+	"github.com/v2fly/v2ray-core/v5/common/net/packetaddr"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
 	"github.com/v2fly/v2ray-core/v5/common/retry"
 	"github.com/v2fly/v2ray-core/v5/common/session"
@@ -18,9 +19,10 @@ import (
 	"github.com/v2fly/v2ray-core/v5/features/policy"
 	"github.com/v2fly/v2ray-core/v5/transport"
 	"github.com/v2fly/v2ray-core/v5/transport/internet"
+	"github.com/v2fly/v2ray-core/v5/transport/internet/udp"
 )
 
-// Client is an inbound handler for Shadowsocks protocol
+// Client is a inbound handler for Shadowsocks protocol
 type Client struct {
 	serverPicker  protocol.ServerPicker
 	policyManager policy.Manager
@@ -179,9 +181,26 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		}
 	}
 
-	if c.protocol != nil {
-		protocolConn = &ProtocolConn{}
-		c.protocol.ProtocolConn(protocolConn, iv)
+	if packetConn, err := packetaddr.ToPacketAddrConn(link, destination); err == nil {
+		requestDone := func() error {
+			protocolWriter := &UDPWriter{
+				Writer:  conn,
+				Request: request,
+			}
+			return udp.CopyPacketConn(protocolWriter, packetConn, udp.UpdateActivity(timer))
+		}
+		responseDone := func() error {
+			protocolReader := &UDPReader{
+				Reader: conn,
+				User:   user,
+			}
+			return udp.CopyPacketConn(packetConn, protocolReader, udp.UpdateActivity(timer))
+		}
+		responseDoneAndCloseWriter := task.OnSuccess(responseDone, task.Close(link.Writer))
+		if err := task.Run(ctx, requestDone, responseDoneAndCloseWriter); err != nil {
+			return newError("connection ends").Base(err)
+		}
+		return nil
 	}
 
 	if request.Command == protocol.RequestCommandTCP {
