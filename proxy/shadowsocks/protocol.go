@@ -191,7 +191,7 @@ func WriteTCPResponse(request *protocol.RequestHeader, writer io.Writer, iv []by
 	return w, err
 }
 
-func EncodeUDPPacket(request *protocol.RequestHeader, payload []byte) (*buf.Buffer, error) {
+func EncodeUDPPacket(request *protocol.RequestHeader, payload []byte, ssrp ProtocolPlugin) (*buf.Buffer, error) {
 	user := request.User
 	account := user.Account.(*MemoryAccount)
 
@@ -207,6 +207,21 @@ func EncodeUDPPacket(request *protocol.RequestHeader, payload []byte) (*buf.Buff
 
 	buffer.Write(payload)
 
+	if ssrp != nil {
+		//这傻逼SSR
+		iv := buffer.BytesTo(ivLen)
+		data := buffer.BytesFrom(ivLen)
+
+		SSRSB, err := ssrp.EncodePacket(data)
+		if err != nil {
+			return nil, newError("SSR client_udp_pre_encrypt").Base(err)
+		}
+
+		buffer.Clear()
+		buffer.Write(iv)
+		buffer.Write(SSRSB)
+	}
+
 	if err := account.Cipher.EncodePacket(account.Key, buffer); err != nil {
 		return nil, newError("failed to encrypt UDP payload").Base(err)
 	}
@@ -214,7 +229,7 @@ func EncodeUDPPacket(request *protocol.RequestHeader, payload []byte) (*buf.Buff
 	return buffer, nil
 }
 
-func DecodeUDPPacket(user *protocol.MemoryUser, payload *buf.Buffer) (*protocol.RequestHeader, *buf.Buffer, error) {
+func DecodeUDPPacket(user *protocol.MemoryUser, payload *buf.Buffer, ssrp ProtocolPlugin) (*protocol.RequestHeader, *buf.Buffer, error) {
 	account := user.Account.(*MemoryAccount)
 
 	var iv []byte
@@ -226,6 +241,15 @@ func DecodeUDPPacket(user *protocol.MemoryUser, payload *buf.Buffer) (*protocol.
 
 	if err := account.Cipher.DecodePacket(account.Key, payload); err != nil {
 		return nil, nil, newError("failed to decrypt UDP payload").Base(err)
+	}
+
+	if ssrp != nil {
+		SSRSB, err := ssrp.DecodePacket(payload.Bytes())
+		if err != nil {
+			return nil, nil, newError("SSR client_udp_post_decrypt").Base(err)
+		}
+		payload.Clear()
+		payload.Write(SSRSB)
 	}
 
 	request := &protocol.RequestHeader{
@@ -248,9 +272,9 @@ func DecodeUDPPacket(user *protocol.MemoryUser, payload *buf.Buffer) (*protocol.
 }
 
 type UDPReader struct {
-	Reader io.Reader
-	User   *protocol.MemoryUser
-	Plugin ProtocolPlugin
+	Reader      io.Reader
+	User        *protocol.MemoryUser
+	SSRProtocol ProtocolPlugin
 }
 
 func (v *UDPReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
@@ -260,19 +284,13 @@ func (v *UDPReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 		buffer.Release()
 		return nil, err
 	}
-	if v.Plugin != nil {
-		newBuffer, err := v.Plugin.DecodePacket(buffer)
-		if err != nil {
-			return nil, err
-		}
-		buffer = newBuffer
-	}
 
-	header, payload, err := DecodeUDPPacket(v.User, buffer)
+	header, payload, err := DecodeUDPPacket(v.User, buffer, v.SSRProtocol)
 	if err != nil {
 		buffer.Release()
 		return nil, err
 	}
+
 	endpoint := header.Destination()
 	payload.Endpoint = &endpoint
 	return buf.MultiBuffer{payload}, nil
@@ -285,7 +303,7 @@ func (v *UDPReader) ReadFrom(p []byte) (n int, addr gonet.Addr, err error) {
 		buffer.Release()
 		return 0, nil, err
 	}
-	vaddr, payload, err := DecodeUDPPacket(v.User, buffer)
+	vaddr, payload, err := DecodeUDPPacket(v.User, buffer, v.SSRProtocol)
 	if err != nil {
 		buffer.Release()
 		return 0, nil, err
@@ -296,9 +314,9 @@ func (v *UDPReader) ReadFrom(p []byte) (n int, addr gonet.Addr, err error) {
 }
 
 type UDPWriter struct {
-	Writer  io.Writer
-	Request *protocol.RequestHeader
-	Plugin  ProtocolPlugin
+	Writer      io.Writer
+	Request     *protocol.RequestHeader
+	SSRProtocol ProtocolPlugin
 }
 
 func (w *UDPWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
@@ -314,18 +332,11 @@ func (w *UDPWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
 				Port:    buffer.Endpoint.Port,
 			}
 		}
-		packet, err := EncodeUDPPacket(request, buffer.Bytes())
+		packet, err := EncodeUDPPacket(request, buffer.Bytes(), w.SSRProtocol)
 		buffer.Release()
 		if err != nil {
 			buf.ReleaseMulti(mb)
 			return err
-		}
-		if w.Plugin != nil {
-			newBuffer, err := w.Plugin.EncodePacket(buffer)
-			if err != nil {
-				return err
-			}
-			buffer = newBuffer
 		}
 		_, err = w.Writer.Write(packet.Bytes())
 		packet.Release()
@@ -339,16 +350,9 @@ func (w *UDPWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
 
 // Write implements io.Writer.
 func (w *UDPWriter) Write(payload []byte) (int, error) {
-	packet, err := EncodeUDPPacket(w.Request, payload)
+	packet, err := EncodeUDPPacket(w.Request, payload, w.SSRProtocol)
 	if err != nil {
 		return 0, err
-	}
-	if w.Plugin != nil {
-		newBuffer, err := w.Plugin.EncodePacket(packet)
-		if err != nil {
-			return 0, err
-		}
-		packet = newBuffer
 	}
 	_, err = w.Writer.Write(packet.Bytes())
 	packet.Release()
@@ -361,7 +365,7 @@ func (w *UDPWriter) WriteTo(payload []byte, addr gonet.Addr) (n int, err error) 
 	request.Command = protocol.RequestCommandUDP
 	request.Address = net.IPAddress(udpAddr.IP)
 	request.Port = net.Port(udpAddr.Port)
-	packet, err := EncodeUDPPacket(&request, payload)
+	packet, err := EncodeUDPPacket(&request, payload, w.SSRProtocol)
 	if err != nil {
 		return 0, err
 	}

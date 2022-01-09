@@ -39,8 +39,9 @@ type ProtocolConn struct {
 	ProtocolWriter buf.Writer
 }
 
+// 喵
 type ProtocolPlugin interface {
 	ProtocolConn(conn *ProtocolConn, iv []byte)
-	EncodePacket(buffer *buf.Buffer) (*buf.Buffer, error)
-	DecodePacket(buffer *buf.Buffer) (*buf.Buffer, error)
+	EncodePacket(data []byte) ([]byte, error)
+	DecodePacket(data []byte) ([]byte, error)
 }

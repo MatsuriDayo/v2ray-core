@@ -137,7 +137,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		if err != nil {
 			return err
 		}
-		if c.stream != nil {
+		if c.stream != nil && network == net.Network_TCP {
 			conn = c.stream.StreamConn(rawConn)
 		} else {
 			conn = rawConn
@@ -172,6 +172,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 
 	var protocolConn *ProtocolConn
 	var iv []byte
+	//note: sekai moved here
 	account := user.Account.(*MemoryAccount)
 	if account.Cipher.IVSize() > 0 {
 		iv = make([]byte, account.Cipher.IVSize())
@@ -189,15 +190,17 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	if packetConn, err := packetaddr.ToPacketAddrConn(link, destination); err == nil {
 		requestDone := func() error {
 			protocolWriter := &UDPWriter{
-				Writer:  conn,
-				Request: request,
+				Writer:      conn,
+				Request:     request,
+				SSRProtocol: c.protocol,
 			}
 			return udp.CopyPacketConn(protocolWriter, packetConn, udp.UpdateActivity(timer))
 		}
 		responseDone := func() error {
 			protocolReader := &UDPReader{
-				Reader: conn,
-				User:   user,
+				Reader:      conn,
+				User:        user,
+				SSRProtocol: c.protocol,
 			}
 			return udp.CopyPacketConn(packetConn, protocolReader, udp.UpdateActivity(timer))
 		}
@@ -250,9 +253,9 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 
 	if request.Command == protocol.RequestCommandUDP {
 		writer := &UDPWriter{
-			Writer:  conn,
-			Request: request,
-			Plugin:  c.protocol,
+			Writer:      conn,
+			Request:     request,
+			SSRProtocol: c.protocol,
 		}
 
 		requestDone := func() error {
@@ -268,9 +271,9 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 			defer timer.SetTimeout(sessionPolicy.Timeouts.UplinkOnly)
 
 			reader := &UDPReader{
-				Reader: conn,
-				User:   user,
-				Plugin: c.protocol,
+				Reader:      conn,
+				User:        user,
+				SSRProtocol: c.protocol,
 			}
 
 			if err := buf.Copy(reader, link.Writer, buf.UpdateActivity(timer)); err != nil {
