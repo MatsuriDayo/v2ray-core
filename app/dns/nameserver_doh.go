@@ -146,18 +146,19 @@ func (s *DoHNameServer) Cleanup() error {
 	}
 
 	for domain, record := range s.ips {
+		clean := false
+
+		// A and AAAA may have different expiration times, according to v2ray dns design, clear them together to prevent 'A=nil,AAAA=[]'
 		if record.A != nil && record.A.Expire.Before(now) {
-			record.A = nil
+			clean = true
 		}
 		if record.AAAA != nil && record.AAAA.Expire.Before(now) {
-			record.AAAA = nil
+			clean = true
 		}
 
-		if record.A == nil && record.AAAA == nil {
+		if clean {
 			newError(s.name, " cleanup ", domain).AtDebug().WriteToLog()
 			delete(s.ips, domain)
-		} else {
-			s.ips[domain] = record
 		}
 	}
 
