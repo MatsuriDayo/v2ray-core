@@ -25,6 +25,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/task"
 	dns_feature "github.com/v2fly/v2ray-core/v5/features/dns"
 	"github.com/v2fly/v2ray-core/v5/features/routing"
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 	"github.com/v2fly/v2ray-core/v5/transport/internet"
 )
 
@@ -233,7 +234,7 @@ func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, clientIP n
 			dnsCtx := ctx
 
 			// new: use new context for proxyman (for socks outbound keepalive)
-			dailCtx := context.Background()
+			dailCtx := nekoutils.CopyCtx(dnsCtx)
 
 			// reserve internal dns server requested Inbound
 			if inbound := session.InboundFromContext(ctx); inbound != nil {
