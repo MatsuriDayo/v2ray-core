@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	size := int32(8192)
+	size := int32(16384)
 	for i := 0; i < numPools; i++ {
 		pool[i] = sync.Pool{
 			New: createAllocFunc(size),
