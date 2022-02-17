@@ -9,7 +9,7 @@ import (
 
 const (
 	// Size of a regular buffer.
-	Size = 8192
+	Size = 16384
 )
 
 var pool = bytespool.GetPool(Size)
