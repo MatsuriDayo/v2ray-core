@@ -270,12 +270,12 @@ func fetchInput(ctx context.Context, s *Session, output buf.Writer) {
 		return
 	}
 
+	// fuck error handling
 	if err := buf.Copy(s.input, writer); err != nil {
 		newError("failed to fetch all input").Base(err).WriteToLog(session.ExportIDToError(ctx))
-		writer.hasError = true
-		common.Interrupt(s.input)
-		return
 	}
+
+	writer.hasError = true
 }
 
 func (m *ClientWorker) IsClosing() bool {
@@ -337,6 +337,7 @@ func (m *ClientWorker) handleStatusKeep(meta *FrameMetadata, reader *buf.Buffere
 	if !found {
 		// Notify remote peer to close this session.
 		closingWriter := NewResponseWriter(meta.SessionID, m.link.Writer, protocol.TransferTypeStream)
+		closingWriter.hasError = true
 		closingWriter.Close()
 
 		return buf.Copy(NewStreamReader(reader), buf.Discard)
@@ -344,16 +345,16 @@ func (m *ClientWorker) handleStatusKeep(meta *FrameMetadata, reader *buf.Buffere
 
 	rr := s.NewReader(reader, &meta.Target)
 	err := buf.Copy(rr, s.output)
-	if err != nil && buf.IsWriteError(err) {
+	if err != nil {
 		newError("failed to write to downstream. closing session ", s.ID).Base(err).WriteToLog()
 
 		// Notify remote peer to close this session.
 		closingWriter := NewResponseWriter(meta.SessionID, m.link.Writer, protocol.TransferTypeStream)
+		closingWriter.hasError = true
 		closingWriter.Close()
+		s.Close()
 
 		drainErr := buf.Copy(rr, buf.Discard)
-		common.Interrupt(s.input)
-		s.Close()
 		return drainErr
 	}
 

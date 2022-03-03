@@ -149,8 +149,8 @@ type Session struct {
 
 // Close closes all resources associated with this session.
 func (s *Session) Close() error {
-	common.Close(s.output)
-	common.Close(s.input)
+	common.Interrupt(s.output)
+	common.Interrupt(s.input)
 	s.parent.Remove(s.ID)
 	return nil
 }

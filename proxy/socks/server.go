@@ -197,7 +197,6 @@ func (s *Server) handleUDPPayload(ctx context.Context, conn internet.Connection,
 	}
 	udpServer := udpDispatcherConstructor(dispatcher, func(ctx context.Context, packet *udp_proto.Packet) {
 		payload := packet.Payload
-		newError("writing back UDP response with ", payload.Len(), " bytes").AtDebug().WriteToLog(session.ExportIDToError(ctx))
 
 		request := protocol.RequestHeaderFromContext(ctx)
 		var packetSource net.Destination
@@ -216,10 +215,6 @@ func (s *Server) handleUDPPayload(ctx context.Context, conn internet.Connection,
 
 		conn.Write(udpMessage.Bytes())
 	})
-
-	if inbound := session.InboundFromContext(ctx); inbound != nil && inbound.Source.IsValid() {
-		newError("client UDP connection from ", inbound.Source).WriteToLog(session.ExportIDToError(ctx))
-	}
 
 	reader := buf.NewPacketReader(conn)
 	for {
@@ -241,7 +236,6 @@ func (s *Server) handleUDPPayload(ctx context.Context, conn internet.Connection,
 				continue
 			}
 			currentPacketCtx := ctx
-			newError("send packet to ", request.Destination(), " with ", payload.Len(), " bytes").AtDebug().WriteToLog(session.ExportIDToError(ctx))
 			if inbound := session.InboundFromContext(ctx); inbound != nil && inbound.Source.IsValid() {
 				currentPacketCtx = log.ContextWithAccessMessage(ctx, &log.AccessMessage{
 					From:   inbound.Source,
