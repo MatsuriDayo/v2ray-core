@@ -270,7 +270,8 @@ func fetchInput(ctx context.Context, s *Session, output buf.Writer) {
 		return
 	}
 
-	if err := buf.Copy(s.input, writer); err != nil {
+	// fuck error handling
+	if err := buf.Copy(s.input, writer); err != nil && err.Error() != io.ErrClosedPipe.Error() {
 		newError("failed to fetch all input").Base(err).WriteToLog(session.ExportIDToError(ctx))
 		writer.hasError = true
 		common.Interrupt(s.input)

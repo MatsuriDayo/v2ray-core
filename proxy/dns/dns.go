@@ -134,8 +134,6 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 		dest.Port = h.server.Port
 	}
 
-	newError("handling DNS traffic to ", dest).WriteToLog(session.ExportIDToError(ctx))
-
 	conn := &outboundConn{
 		dialer: func() (internet.Connection, error) {
 			return d.Dial(ctx, dest)
@@ -227,7 +225,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 	}
 
 	if err := task.Run(ctx, request, response); err != nil {
-		return newError("connection ends").Base(err)
+		return nil
 	}
 
 	return nil

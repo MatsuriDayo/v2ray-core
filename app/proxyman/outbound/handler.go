@@ -2,11 +2,13 @@ package outbound
 
 import (
 	"context"
+	"io"
 
 	core "github.com/v2fly/v2ray-core/v5"
 	"github.com/v2fly/v2ray-core/v5/app/proxyman"
 	"github.com/v2fly/v2ray-core/v5/common"
 	"github.com/v2fly/v2ray-core/v5/common/buf"
+	"github.com/v2fly/v2ray-core/v5/common/errors"
 	"github.com/v2fly/v2ray-core/v5/common/mux"
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/net/packetaddr"
@@ -201,14 +203,14 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 			}
 		}
 		err := h.proxy.Process(ctx, link, h)
-		if err != nil {
+		if err != nil && errors.Cause(err) != io.ErrClosedPipe { //?
 			// Ensure outbound ray is properly closed.
 			err := newError("failed to process outbound traffic").Base(err)
 			session.SubmitOutboundErrorToOriginator(ctx, err)
 			err.WriteToLog(session.ExportIDToError(ctx))
 			common.Interrupt(link.Writer)
 		} else {
-			common.Must(common.Close(link.Writer))
+			common.Close(link.Writer)
 		}
 		common.Interrupt(link.Reader)
 	}
