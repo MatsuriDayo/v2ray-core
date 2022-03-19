@@ -45,8 +45,6 @@ type Inbound struct {
 	User *protocol.MemoryUser
 	// SagerNet private: Uid is the android app's unix user id for the inbound connection
 	Uid uint32
-	// SagerNet private: AppStatus is the android app's status for the inbound connection
-	AppStatus []string
 	// SagerNet private
 	SkipFakeDNS bool
 }

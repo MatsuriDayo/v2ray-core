@@ -339,33 +339,3 @@ func NewUidMatcher(list *net.UidList) *UidMatcher {
 func (u UidMatcher) Apply(ctx routing.Context) bool {
 	return u.uidList[ctx.GetUid()]
 }
-
-type AppStatusMatcher struct {
-	appStatus map[string]bool
-}
-
-func NewAppStatusMatcher(appStatus []string) *AppStatusMatcher {
-	m := &AppStatusMatcher{
-		appStatus: map[string]bool{},
-	}
-
-	for _, status := range appStatus {
-		m.appStatus[status] = true
-	}
-
-	return m
-}
-
-// Apply implements Condition.
-func (m *AppStatusMatcher) Apply(ctx routing.Context) bool {
-	status := ctx.GetAppStatus()
-	if len(status) == 0 {
-		return false
-	}
-	for _, s := range status {
-		if !m.appStatus[s] {
-			return false
-		}
-	}
-	return true
-}
