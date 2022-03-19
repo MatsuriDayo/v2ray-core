@@ -217,14 +217,36 @@ func (s *DNS) LookupHosts(domain string) *net.Address {
 	return nil
 }
 
-func (s *DNS) lookupIPInternal(_domain dns.MatsuriDomainString, option dns.IPOption) ([]net.IP, error) {
+func (s *DNS) lookupIPInternal(_domain dns.MatsuriDomainString, _option dns.IPOption) ([]net.IP, error) {
 	// Masuri: hook
 	var domain string
 	var ex *dns.MatsuriDomainStringEx
+	option := _option
 
 	if a, ok := _domain.(*dns.MatsuriDomainStringEx); ok {
 		ex = a
 		domain = a.Domain
+		if ex.OptNetwork != "" {
+			if strings.HasSuffix(ex.OptNetwork, "4") {
+				option = dns.IPOption{
+					IPv4Enable: true,
+					IPv6Enable: false,
+					FakeEnable: false,
+				}
+			} else if strings.HasSuffix(ex.OptNetwork, "6") {
+				option = dns.IPOption{
+					IPv4Enable: false,
+					IPv6Enable: true,
+					FakeEnable: false,
+				}
+			} else {
+				option = dns.IPOption{
+					IPv4Enable: true,
+					IPv6Enable: true,
+					FakeEnable: false,
+				}
+			}
+		}
 	} else if a, ok := _domain.(string); ok {
 		domain = a
 	} else {

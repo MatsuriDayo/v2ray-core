@@ -23,6 +23,7 @@ type MatsuriDomainString interface {
 type MatsuriDomainStringEx struct {
 	Domain     string
 	OptInbound *session.Inbound
+	OptNetwork string
 }
 
 // Client is a V2Ray feature for querying DNS information.
