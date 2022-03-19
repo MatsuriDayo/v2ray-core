@@ -28,7 +28,7 @@ var errSniffingTimeout = newError("timeout on sniffing")
 
 type cachedReader struct {
 	sync.Mutex
-	reader *pipe.Reader
+	reader buf.TimeoutReader2
 	cache  buf.MultiBuffer
 }
 
@@ -82,7 +82,11 @@ func (r *cachedReader) Interrupt() {
 		r.cache = buf.ReleaseMulti(r.cache)
 	}
 	r.Unlock()
-	r.reader.Interrupt()
+	if p, ok := r.reader.(common.Interruptible); ok {
+		p.Interrupt()
+	} else if p, ok := r.reader.(common.Closable); ok {
+		p.Close()
+	}
 }
 
 // DefaultDispatcher is a default implementation of Dispatcher.
@@ -260,7 +264,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 	} else {
 		go func() {
 			cReader := &cachedReader{
-				reader: outbound.Reader.(*pipe.Reader),
+				reader: outbound.Reader.(buf.TimeoutReader2),
 			}
 			outbound.Reader = cReader
 			result, err := sniffer(ctx, cReader, sniffingRequest.MetadataOnly, destination.Network)

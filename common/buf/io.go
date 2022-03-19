@@ -22,6 +22,12 @@ type TimeoutReader interface {
 	ReadMultiBufferTimeout(time.Duration) (MultiBuffer, error)
 }
 
+// wtf
+type TimeoutReader2 interface {
+	TimeoutReader
+	Reader
+}
+
 // Writer extends io.Writer with MultiBuffer.
 type Writer interface {
 	// WriteMultiBuffer writes a MultiBuffer into underlying writer.
