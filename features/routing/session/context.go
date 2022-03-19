@@ -130,13 +130,6 @@ func (ctx *Context) GetUid() uint32 {
 	return ctx.Inbound.Uid
 }
 
-func (ctx *Context) GetAppStatus() []string {
-	if ctx.Inbound == nil {
-		return nil
-	}
-	return ctx.Inbound.AppStatus
-}
-
 func (ctx Context) GetSkipFakeDNS() bool {
 	if ctx.Inbound == nil {
 		return false
