@@ -7,6 +7,7 @@ import (
 
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/session"
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 )
 
 var (
@@ -61,9 +62,9 @@ func (d *DefaultSystemDialer) Dial(ctx context.Context, src net.Address, dest ne
 		if err != nil {
 			return nil, err
 		}
-		return &PacketConnWrapper{
-			Conn: packetConn,
-			Dest: destAddr,
+		return &nekoutils.PacketConnWrapper{
+			PacketConn: packetConn,
+			Dest:       destAddr,
 		}, nil
 	}
 	goStdKeepAlive := time.Duration(0)
@@ -111,52 +112,6 @@ func ApplySockopt(sockopt *SocketConfig, dest net.Destination, fd uintptr, ctx c
 			newError("failed to bind source address to ", sockopt.BindAddress).Base(err).WriteToLog(session.ExportIDToError(ctx))
 		}
 	}
-}
-
-type PacketConnWrapper struct {
-	Conn net.PacketConn
-	Dest net.Addr
-}
-
-func (c *PacketConnWrapper) Close() error {
-	return c.Conn.Close()
-}
-
-func (c *PacketConnWrapper) LocalAddr() net.Addr {
-	return c.Conn.LocalAddr()
-}
-
-func (c *PacketConnWrapper) RemoteAddr() net.Addr {
-	return c.Dest
-}
-
-func (c *PacketConnWrapper) Write(p []byte) (int, error) {
-	return c.Conn.WriteTo(p, c.Dest)
-}
-
-func (c *PacketConnWrapper) Read(p []byte) (int, error) {
-	n, _, err := c.Conn.ReadFrom(p)
-	return n, err
-}
-
-func (c *PacketConnWrapper) WriteTo(p []byte, d net.Addr) (int, error) {
-	return c.Conn.WriteTo(p, d)
-}
-
-func (c *PacketConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	return c.Conn.ReadFrom(p)
-}
-
-func (c *PacketConnWrapper) SetDeadline(t time.Time) error {
-	return c.Conn.SetDeadline(t)
-}
-
-func (c *PacketConnWrapper) SetReadDeadline(t time.Time) error {
-	return c.Conn.SetReadDeadline(t)
-}
-
-func (c *PacketConnWrapper) SetWriteDeadline(t time.Time) error {
-	return c.Conn.SetWriteDeadline(t)
 }
 
 type SystemDialerAdapter interface {

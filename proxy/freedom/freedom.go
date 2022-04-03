@@ -18,6 +18,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/features/dns"
 	"github.com/v2fly/v2ray-core/v5/features/policy"
 	"github.com/v2fly/v2ray-core/v5/features/stats"
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 	"github.com/v2fly/v2ray-core/v5/transport"
 	"github.com/v2fly/v2ray-core/v5/transport/internet"
 )
@@ -194,6 +195,8 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 	return nil
 }
 
+// nekohasekai begin
+
 func newPacketReader(conn net.Conn) buf.Reader {
 	iConn := conn
 	statConn, ok := iConn.(*internet.StatCouterConnection)
@@ -204,7 +207,7 @@ func newPacketReader(conn net.Conn) buf.Reader {
 	if statConn != nil {
 		counter = statConn.ReadCounter
 	}
-	if c, ok := iConn.(*internet.PacketConnWrapper); ok {
+	if c, ok := iConn.(nekoutils.FusedConn); ok {
 		return &packetReader{
 			c, counter,
 		}
@@ -213,7 +216,7 @@ func newPacketReader(conn net.Conn) buf.Reader {
 }
 
 type packetReader struct {
-	conn    *internet.PacketConnWrapper
+	conn    nekoutils.FusedConn
 	counter stats.Counter
 }
 
@@ -247,7 +250,7 @@ func newPacketWriter(conn net.Conn) buf.Writer {
 	if statConn != nil {
 		counter = statConn.WriteCounter
 	}
-	if c, ok := iConn.(*internet.PacketConnWrapper); ok {
+	if c, ok := iConn.(nekoutils.FusedConn); ok {
 		return &packetWriter{
 			c,
 			counter,
@@ -257,7 +260,7 @@ func newPacketWriter(conn net.Conn) buf.Writer {
 }
 
 type packetWriter struct {
-	conn    *internet.PacketConnWrapper
+	conn    nekoutils.FusedConn
 	counter stats.Counter
 }
 
