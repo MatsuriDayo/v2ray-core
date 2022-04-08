@@ -5,6 +5,7 @@ import (
 
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/session"
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 	"github.com/v2fly/v2ray-core/v5/transport/internet/tagged"
 )
 
@@ -67,7 +68,13 @@ func Dial(ctx context.Context, dest net.Destination, streamSettings *MemoryStrea
 }
 
 // DialSystem calls system dialer to create a network connection.
-func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (net.Conn, error) {
+func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (conn net.Conn, err error) {
+	defer func() {
+		if conn != nil {
+			conn = nekoutils.ConnectionPool_System.StartNetConn(conn)
+		}
+	}()
+
 	var src net.Address
 	if outbound := session.OutboundFromContext(ctx); outbound != nil {
 		src = outbound.Gateway
@@ -81,7 +88,13 @@ func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig
 }
 
 // SagerNet: private
-func DialSystemDNS(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (net.Conn, error) {
+func DialSystemDNS(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (conn net.Conn, err error) {
+	defer func() {
+		if conn != nil {
+			conn = nekoutils.ConnectionPool_System.StartNetConn(conn)
+		}
+	}()
+
 	var src net.Address
 	if outbound := session.OutboundFromContext(ctx); outbound != nil {
 		src = outbound.Gateway

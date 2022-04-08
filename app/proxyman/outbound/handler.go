@@ -18,6 +18,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/features/outbound"
 	"github.com/v2fly/v2ray-core/v5/features/policy"
 	"github.com/v2fly/v2ray-core/v5/features/stats"
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 	"github.com/v2fly/v2ray-core/v5/proxy"
 	"github.com/v2fly/v2ray-core/v5/transport"
 	"github.com/v2fly/v2ray-core/v5/transport/internet"
@@ -144,6 +145,23 @@ func (h *Handler) Tag() string {
 func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 	outbound := session.OutboundFromContext(ctx)
 	destination := outbound.Target
+
+	// Neko connections
+	if nekoutils.Connection_V2Ray_Enabled {
+		conn := &nekoutils.ManagedV2rayConn{
+			Dest:    destination,
+			Inbound: session.InboundFromContext(ctx),
+			Tag:     h.tag,
+			CloseFunc: func() error {
+				common.Interrupt(link.Reader)
+				common.Interrupt(link.Writer)
+				return nil
+			},
+		}
+		conn.ConnectionStart()
+		defer conn.ConnectionEnd()
+	}
+
 	if h.mux != nil && (h.mux.Enabled || session.MuxPreferedFromContext(ctx)) {
 		if destination.Network == net.Network_UDP {
 			switch h.muxPacketEncoding {
