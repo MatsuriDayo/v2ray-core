@@ -146,6 +146,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 		if c.client == nil {
 			client, err := c.connect(ctx, dialer)
 			if err != nil {
+				c.Unlock()
 				return err
 			}
 			go func() {
@@ -166,6 +167,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	if err != nil {
 		return newError("failed to open ssh proxy connection").Base(err)
 	}
+	defer conn.Close()
 
 	ctx, cancel := context.WithCancel(ctx)
 	timer := signal.CancelAfterInactivity(ctx, cancel, c.sessionPolicy.Timeouts.ConnectionIdle)
