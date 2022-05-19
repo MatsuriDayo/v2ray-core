@@ -1,8 +1,12 @@
 package internet
 
 import (
+	"encoding/binary"
+	"log"
 	"syscall"
+	"unsafe"
 
+	"github.com/v2fly/v2ray-core/v5/nekoutils"
 	"golang.org/x/sys/windows"
 )
 
@@ -25,6 +29,21 @@ func setTFO(fd syscall.Handle, settings SocketConfig_TCPFastOpenState) error {
 }
 
 func applyOutboundSocketOptions(network string, address string, fd uintptr, config *SocketConfig) error {
+	if nekoutils.Windows_Protect_BindInterfaceIndex != nil {
+		BindInterfaceIndex := nekoutils.Windows_Protect_BindInterfaceIndex()
+		if BindInterfaceIndex != 0 {
+			log.Println(fd, network, BindInterfaceIndex)
+			if err := bindInterface(fd, network, BindInterfaceIndex); err != nil {
+				log.Println(err)
+				return err
+			}
+		}
+	}
+
+	if config == nil {
+		return nil
+	}
+
 	if isTCPSocket(network) {
 		if err := setTFO(syscall.Handle(fd), config.Tfo); err != nil {
 			return err
@@ -87,5 +106,28 @@ func setReuseAddr(fd uintptr) error {
 }
 
 func setReusePort(fd uintptr) error {
+	return nil
+}
+
+const (
+	IP_UNICAST_IF   = 31 // nolint: golint,stylecheck
+	IPV6_UNICAST_IF = 31 // nolint: golint,stylecheck
+)
+
+func bindInterface(fd uintptr, network string, interfaceIndex uint32) error {
+	switch network {
+	case "tcp4", "udp4":
+		var bytes [4]byte
+		binary.BigEndian.PutUint32(bytes[:], interfaceIndex)
+		interfaceIndex = *(*uint32)(unsafe.Pointer(&bytes[0]))
+		if err := windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_IP, IP_UNICAST_IF, int(interfaceIndex)); err != nil {
+			return err
+		}
+	case "tcp6", "udp6":
+		if err := windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_IPV6, IPV6_UNICAST_IF, int(interfaceIndex)); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
