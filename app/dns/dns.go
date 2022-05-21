@@ -283,6 +283,7 @@ func (s *DNS) lookupIPInternal(_domain dns.MatsuriDomainString, _option dns.IPOp
 			newError("skip DNS resolution for domain ", domain, " at server ", client.Name()).AtDebug().WriteToLog()
 			continue
 		}
+		newError(client.server.Name(), " Querying IP for ", domain).AtInfo().WriteToLog()
 		ips, err := client.QueryIP(ctx, domain, option, s.disableCache)
 		if len(ips) > 0 {
 			return ips, nil

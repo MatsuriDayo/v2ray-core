@@ -216,8 +216,6 @@ func (s *DoHNameServer) newReqID() uint16 {
 }
 
 func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, clientIP net.IP, option dns_feature.IPOption) {
-	newError(s.name, " querying: ", domain).AtInfo().WriteToLog(session.ExportIDToError(ctx))
-
 	reqs := buildReqMsgs(domain, option, s.newReqID, genEDNS0Options(clientIP))
 
 	var deadline time.Time

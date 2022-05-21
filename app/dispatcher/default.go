@@ -229,7 +229,7 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
 				domain := result.Domain()
-				newError("sniffed domain: ", domain).WriteToLog(session.ExportIDToError(ctx))
+				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
 				destination.Address = net.ParseAddress(domain)
 				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
 					ob.RouteTarget = destination
@@ -273,7 +273,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
 				domain := result.Domain()
-				newError("sniffed domain: ", domain).WriteToLog(session.ExportIDToError(ctx))
+				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
 				destination.Address = net.ParseAddress(domain)
 				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
 					ob.RouteTarget = destination
@@ -336,6 +336,17 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
 	var handler outbound.Handler
 
+	routingLink := routing_session.AsRoutingContext(ctx)
+	inTag := routingLink.GetInboundTag()
+
+	var target1, target2 string
+	if ob := session.OutboundFromContext(ctx); ob != nil {
+		target1 = ob.Target.String()
+		if ob.RouteTarget.IsValid() && ob.RouteTarget.String() != target1 {
+			target2 = ob.RouteTarget.String()
+		}
+	}
+
 	if forcedOutboundTag := session.GetForcedOutboundTagFromContext(ctx); forcedOutboundTag != "" {
 		ctx = session.SetForcedOutboundTagToContext(ctx, "")
 		if h := d.ohm.GetHandler(forcedOutboundTag); h != nil {
@@ -348,16 +359,16 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			return
 		}
 	} else if d.router != nil {
-		if route, err := d.router.PickRoute(routing_session.AsRoutingContext(ctx)); err == nil {
+		if route, err := d.router.PickRoute(routingLink); err == nil {
 			tag := route.GetOutboundTag()
 			if h := d.ohm.GetHandler(tag); h != nil {
-				newError("taking detour [", tag, "] for [", destination, "]").WriteToLog(session.ExportIDToError(ctx))
+				newError("taking detour [", tag, "] for [", target1, "] ", target2).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 				handler = h
 			} else {
 				newError("non existing tag: ", tag).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 			}
 		} else {
-			newError("default route for ", destination).AtWarning().WriteToLog(session.ExportIDToError(ctx))
+			newError("default route for [", target1, "] ", target2).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 		}
 	}
 
@@ -372,9 +383,15 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 		return
 	}
 
+	// log access
 	if accessMessage := log.AccessMessageFromContext(ctx); accessMessage != nil {
+		accessMessage.To = "[" + target1 + "] " + target2
 		if tag := handler.Tag(); tag != "" {
-			accessMessage.Detour = tag
+			if inTag == "" {
+				accessMessage.Detour = tag
+			} else {
+				accessMessage.Detour = inTag + " -> " + tag
+			}
 		}
 		log.Record(accessMessage)
 	}

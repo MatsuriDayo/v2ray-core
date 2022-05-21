@@ -187,8 +187,6 @@ func (s *ClassicNameServer) addPendingRequest(req *dnsRequest) {
 }
 
 func (s *ClassicNameServer) sendQuery(ctx context.Context, domain string, clientIP net.IP, option dns_feature.IPOption) {
-	newError(s.name, " querying DNS for: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
-
 	reqs := buildReqMsgs(domain, option, s.newReqID, genEDNS0Options(clientIP))
 
 	for _, req := range reqs {
