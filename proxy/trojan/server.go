@@ -344,7 +344,7 @@ func (s *Server) fallback(ctx context.Context, sid errors.ExportOption, err erro
 	ctx = policy.ContextWithBufferPolicy(ctx, sessionPolicy.Buffer)
 
 	var conn net.Conn
-	if err := retry.ExponentialBackoff(5, 100).On(func() error {
+	if err := retry.ExponentialBackoff(2, 100).On(func() error {
 		var dialer net.Dialer
 		conn, err = dialer.DialContext(ctx, fb.Type, fb.Dest)
 		if err != nil {
