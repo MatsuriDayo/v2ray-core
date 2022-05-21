@@ -62,7 +62,7 @@ func (v *Dispatcher) getInboundRay(ctx context.Context, dest net.Destination) *c
 		return entry
 	}
 
-	newError("establishing new connection for ", dest).WriteToLog()
+	// newError("establishing new connection for ", dest).AtDebug().WriteToLog()
 
 	ctx, cancel := context.WithCancel(ctx)
 	removeRay := func() {
@@ -83,7 +83,7 @@ func (v *Dispatcher) getInboundRay(ctx context.Context, dest net.Destination) *c
 
 func (v *Dispatcher) Dispatch(ctx context.Context, destination net.Destination, payload *buf.Buffer) {
 	// TODO: Add user to destString
-	newError("dispatch request to: ", destination).AtDebug().WriteToLog(session.ExportIDToError(ctx))
+	// newError("dispatch request to: ", destination).AtDebug().WriteToLog(session.ExportIDToError(ctx))
 
 	conn := v.getInboundRay(ctx, destination)
 	outputStream := conn.link.Writer
@@ -111,7 +111,7 @@ func handleInput(ctx context.Context, conn *connEntry, dest net.Destination, cal
 
 		mb, err := input.ReadMultiBuffer()
 		if err != nil {
-			newError("failed to handle UDP input").Base(err).WriteToLog(session.ExportIDToError(ctx))
+			// newError("failed to handle UDP input").Base(err).WriteToLog(session.ExportIDToError(ctx))
 			return
 		}
 		timer.Update()

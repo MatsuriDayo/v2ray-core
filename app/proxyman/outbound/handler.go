@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"io"
+	"strings"
 
 	core "github.com/v2fly/v2ray-core/v5"
 	"github.com/v2fly/v2ray-core/v5/app/proxyman"
@@ -224,6 +225,11 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 		if err != nil && errors.Cause(err) != io.ErrClosedPipe { //?
 			// Ensure outbound ray is properly closed.
 			err := newError("failed to process outbound traffic").Base(err)
+			if strings.Contains(err.String(), "connection ends > context canceled") {
+				err = err.AtInfo()
+			} else {
+				err = err.AtWarning()
+			}
 			session.SubmitOutboundErrorToOriginator(ctx, err)
 			err.WriteToLog(session.ExportIDToError(ctx))
 			common.Interrupt(link.Writer)

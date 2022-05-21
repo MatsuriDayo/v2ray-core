@@ -229,7 +229,7 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
 				domain := result.Domain()
-				newError("sniffed domain: ", domain).WriteToLog(session.ExportIDToError(ctx))
+				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
 				destination.Address = net.ParseAddress(domain)
 				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
 					ob.RouteTarget = destination
@@ -273,7 +273,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
 				domain := result.Domain()
-				newError("sniffed domain: ", domain).WriteToLog(session.ExportIDToError(ctx))
+				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
 				destination.Address = net.ParseAddress(domain)
 				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
 					ob.RouteTarget = destination
@@ -348,16 +348,25 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			return
 		}
 	} else if d.router != nil {
+		var target1, target2 string
+		if ob := session.OutboundFromContext(ctx); ob != nil {
+			target1 = ob.Target.String()
+			if ob.RouteTarget.IsValid() && ob.RouteTarget.String() != target1 {
+				target2 = target1
+				target1 = ob.RouteTarget.String()
+			}
+		}
+
 		if route, err := d.router.PickRoute(routing_session.AsRoutingContext(ctx)); err == nil {
 			tag := route.GetOutboundTag()
 			if h := d.ohm.GetHandler(tag); h != nil {
-				newError("taking detour [", tag, "] for [", destination, "]").WriteToLog(session.ExportIDToError(ctx))
+				newError("taking detour [", tag, "] for [", target1, "] ", target2).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 				handler = h
 			} else {
 				newError("non existing tag: ", tag).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 			}
 		} else {
-			newError("default route for ", destination).AtWarning().WriteToLog(session.ExportIDToError(ctx))
+			newError("default route for [", target1, "] ", target2).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 		}
 	}
 
