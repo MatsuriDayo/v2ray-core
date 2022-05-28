@@ -1,6 +1,7 @@
 package nekoutils
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -10,13 +11,15 @@ import (
 
 // 假的
 type ManagedV2rayConn struct {
-	id uint32
+	id   uint32
+	lock sync.Mutex
 
 	CloseFunc func() error
 
-	Dest    v2rayNet.Destination
-	Inbound *session.Inbound
-	Tag     string
+	Dest      v2rayNet.Destination
+	RouteDest v2rayNet.Destination
+	Inbound   *session.Inbound
+	Tag       string
 
 	StartTime int64
 	EndTime   int64
@@ -46,8 +49,15 @@ func (c *ManagedV2rayConn) ConnectionStart() {
 }
 
 func (c *ManagedV2rayConn) ConnectionEnd() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.EndTime > 0 {
+		return
+	}
+	c.EndTime = time.Now().Unix()
+
 	// Move to log
 	ConnectionPool_V2Ray.RemoveConnection(c)
-	c.EndTime = time.Now().Unix()
 	ConnectionLog_V2Ray.AddConnection(c)
 }

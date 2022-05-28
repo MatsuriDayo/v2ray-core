@@ -150,17 +150,21 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 	// Neko connections
 	if nekoutils.Connection_V2Ray_Enabled {
 		conn := &nekoutils.ManagedV2rayConn{
-			Dest:    destination,
-			Inbound: session.InboundFromContext(ctx),
-			Tag:     h.tag,
+			Dest:      outbound.Target,
+			RouteDest: outbound.RouteTarget,
+			Inbound:   session.InboundFromContext(ctx),
+			Tag:       h.tag,
 			CloseFunc: func() error {
 				common.Interrupt(link.Reader)
 				common.Interrupt(link.Writer)
 				return nil
 			},
 		}
+		link = transport.LinkWithCloseHook(link, func() bool {
+			conn.ConnectionEnd()
+			return true
+		})
 		conn.ConnectionStart()
-		defer conn.ConnectionEnd()
 	}
 
 	if h.mux != nil && (h.mux.Enabled || session.MuxPreferedFromContext(ctx)) {
