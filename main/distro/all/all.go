@@ -1,5 +1,10 @@
 package all
 
+// *Minimal build*
+
+// Matsuri: Minimal
+// Nekoray: Minimal + import on demand
+
 import (
 	// The following are necessary as they register handlers in their init functions.
 
@@ -32,7 +37,7 @@ import (
 
 	// Developer preview features
 	// _ "github.com/v2fly/v2ray-core/v5/app/instman"
-	_ "github.com/v2fly/v2ray-core/v5/app/observatory"
+	// _ "github.com/v2fly/v2ray-core/v5/app/observatory"
 	// _ "github.com/v2fly/v2ray-core/v5/app/restfulapi"
 
 	// Inbound and outbound proxies.
@@ -46,14 +51,16 @@ import (
 	_ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/plugin/self"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/socks"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/trojan"
+
 	// _ "github.com/v2fly/v2ray-core/v5/proxy/vless/inbound"
-	// _ "github.com/v2fly/v2ray-core/v5/proxy//outbound"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/vless/outbound"
+
 	_ "github.com/v2fly/v2ray-core/v5/proxy/vmess/inbound"
 	_ "github.com/v2fly/v2ray-core/v5/proxy/vmess/outbound"
 
 	// Developer preview proxies
-	_ "github.com/v2fly/v2ray-core/v5/proxy/vlite/inbound"
-	_ "github.com/v2fly/v2ray-core/v5/proxy/vlite/outbound"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/vlite/inbound"
+	// _ "github.com/v2fly/v2ray-core/v5/proxy/vlite/outbound"
 
 	// Transports
 	_ "github.com/v2fly/v2ray-core/v5/transport/internet/domainsocket"
@@ -94,7 +101,6 @@ import (
 
 	// V5 version of json configure file parser
 	_ "github.com/v2fly/v2ray-core/v5/infra/conf/v5cfg"
-
 	// // Simplified config
 	// _ "github.com/v2fly/v2ray-core/v5/proxy/http/simplified"
 	// _ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/simplified"
