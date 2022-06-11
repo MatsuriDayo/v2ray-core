@@ -26,15 +26,11 @@ require (
 	golang.org/x/net v0.0.0-20220325170049-de3da57026de
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220325203850-36772127a21f
-	golang.zx2c4.com/wireguard v0.0.0-20211209221555-9c9e7e272434 //SagerNet
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
-	gvisor.dev/gvisor v0.0.0 //SagerNet
 	h12.io/socks v1.0.3
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 )
-
-replace gvisor.dev/gvisor => github.com/sagernet/gvisor v0.0.0-20220213143053-df431bee78e3
 
 //SagerNet
 require (
@@ -55,7 +51,6 @@ require (
 	github.com/ebfe/rc2 v0.0.0-20131011165748-24b9757f5521 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
-	github.com/google/btree v1.0.1 // indirect
 	github.com/klauspost/cpuid v1.2.3 // indirect
 	github.com/klauspost/reedsolomon v1.9.3 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
@@ -77,11 +72,8 @@ require (
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20211027215541-db492cf91b37 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	golang.zx2c4.com/go118/netip v0.0.0-20211111135330-a4a02eeacf9d // indirect
-	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 	google.golang.org/genproto v0.0.0-20210722135532-667f2b7c528f // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
