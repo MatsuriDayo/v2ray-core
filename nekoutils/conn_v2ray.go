@@ -11,8 +11,9 @@ import (
 
 // 假的
 type ManagedV2rayConn struct {
-	id   uint32
-	lock sync.Mutex
+	id      uint32
+	lock    sync.Mutex
+	corePtr uintptr
 
 	CloseFunc func() error
 
@@ -40,11 +41,16 @@ func (c *ManagedV2rayConn) ID() uint32 {
 	return c.id
 }
 
+func (c *ManagedV2rayConn) Instance() uintptr {
+	return c.corePtr
+}
+
 // 在此添加连接
 
-func (c *ManagedV2rayConn) ConnectionStart() {
+func (c *ManagedV2rayConn) ConnectionStart(core uintptr) {
 	c.StartTime = time.Now().Unix()
 	c.id = atomic.AddUint32(&ConnectionPool_V2Ray.cnt, 1)
+	c.corePtr = core
 	ConnectionPool_V2Ray.AddConnection(c)
 }
 

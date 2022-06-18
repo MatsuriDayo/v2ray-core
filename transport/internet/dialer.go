@@ -71,7 +71,7 @@ func Dial(ctx context.Context, dest net.Destination, streamSettings *MemoryStrea
 func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (conn net.Conn, err error) {
 	defer func() {
 		if conn != nil {
-			conn = nekoutils.ConnectionPool_System.StartNetConn(conn)
+			conn = nekoutils.ConnectionPool_System.StartNetConn(conn, nekoutils.CorePtrFromContext(ctx))
 		}
 	}()
 
@@ -91,7 +91,7 @@ func DialSystem(ctx context.Context, dest net.Destination, sockopt *SocketConfig
 func DialSystemDNS(ctx context.Context, dest net.Destination, sockopt *SocketConfig) (conn net.Conn, err error) {
 	defer func() {
 		if conn != nil {
-			conn = nekoutils.ConnectionPool_System.StartNetConn(conn)
+			conn = nekoutils.ConnectionPool_System.StartNetConn(conn, nekoutils.CorePtrFromContext(ctx))
 		}
 	}()
 

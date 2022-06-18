@@ -164,7 +164,7 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 			conn.ConnectionEnd()
 			return true
 		})
-		conn.ConnectionStart()
+		conn.ConnectionStart(nekoutils.CorePtrFromContext(ctx))
 	}
 
 	if h.mux != nil && (h.mux.Enabled || session.MuxPreferedFromContext(ctx)) {
