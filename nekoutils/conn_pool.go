@@ -4,8 +4,6 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-
-	"github.com/v2fly/v2ray-core/v5/common"
 )
 
 type connectionPool struct {
@@ -30,21 +28,27 @@ func (p *connectionPool) RemoveConnection(c ManagedConn) {
 
 // For all conn
 
-func (p *connectionPool) ResetConnections(reset bool) {
+func (p *connectionPool) ResetConnections(corePtr uintptr) {
 	p.Range(func(key interface{}, value interface{}) bool {
-		p.Delete(key)
-		if reset {
-			common.Close(value)
+		c, ok := value.(ManagedConn)
+
+		if !ok {
+			return true
+		}
+
+		if corePtr == 0 || c.Instance() == corePtr {
+			p.Delete(key)
+			c.Close()
 		}
 		return true
 	})
-	p.cnt = 0
 }
 
 // conn
 
 type ManagedConn interface {
 	ID() uint32
+	Instance() uintptr
 	Close() error
 	RemoteAddress() string
 }
@@ -52,7 +56,9 @@ type ManagedConn interface {
 type mangedNetConn struct {
 	net.Conn //wtf type
 
-	id     uint32
+	id      uint32
+	corePtr uintptr
+
 	Closed int32
 	Pool   *connectionPool
 }
@@ -74,6 +80,10 @@ func (c *mangedNetConn) ID() uint32 {
 	return c.id
 }
 
+func (c *mangedNetConn) Instance() uintptr {
+	return c.corePtr
+}
+
 // packet conn?
 
 var _ FusedConn = (*mangedFusedConn)(nil)
@@ -93,11 +103,12 @@ func (c *mangedFusedConn) ReadFrom(p []byte) (int, net.Addr, error) {
 
 // 在此添加连接
 
-func (p *connectionPool) StartNetConn(c net.Conn) net.Conn {
+func (p *connectionPool) StartNetConn(c net.Conn, core uintptr) net.Conn {
 	mc := mangedNetConn{
-		id:   atomic.AddUint32(&ConnectionPool_System.cnt, 1),
-		Conn: c,
-		Pool: p,
+		id:      atomic.AddUint32(&ConnectionPool_System.cnt, 1),
+		Conn:    c,
+		Pool:    p,
+		corePtr: core,
 	}
 
 	// PacketConn -> FusedConn

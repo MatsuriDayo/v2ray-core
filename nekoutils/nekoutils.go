@@ -72,3 +72,13 @@ func CopyCtx(ctx context.Context) context.Context {
 	}
 	return ctx2
 }
+
+func CorePtrFromContext(ctx context.Context) uintptr {
+	for _, k := range getCtxKeys(ctx) {
+		if reflect.TypeOf(k).Name() == "v2rayKeyType" {
+			core := ctx.Value(k)
+			return reflect.ValueOf(core).Pointer()
+		}
+	}
+	return 0
+}
