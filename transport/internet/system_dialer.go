@@ -2,7 +2,6 @@ package internet
 
 import (
 	"context"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -78,15 +77,12 @@ func (d *DefaultSystemDialer) Dial(ctx context.Context, src net.Address, dest ne
 		KeepAlive: goStdKeepAlive,
 	}
 
-	Windows_Protect_BindInterfaceIndex := nekoutils.Windows_Protect_BindInterfaceIndex
-	if runtime.GOOS != "windows" {
-		Windows_Protect_BindInterfaceIndex = nil
-	}
+	shouldApplyWindowsProtect := nekoutils.Windows_ShouldApplyWindowsProtect()
 
-	if sockopt != nil || len(d.controllers) > 0 || Windows_Protect_BindInterfaceIndex != nil {
+	if sockopt != nil || len(d.controllers) > 0 || shouldApplyWindowsProtect {
 		dialer.Control = func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				if sockopt != nil || Windows_Protect_BindInterfaceIndex != nil {
+				if sockopt != nil || shouldApplyWindowsProtect {
 					if err := applyOutboundSocketOptions(network, address, fd, sockopt); err != nil {
 						newError("failed to apply socket options").Base(err).WriteToLog(session.ExportIDToError(ctx))
 					}
