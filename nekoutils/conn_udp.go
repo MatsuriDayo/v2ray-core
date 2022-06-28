@@ -12,7 +12,7 @@ type FusedConn interface {
 }
 
 // Wrap a net.PacketConn to a net.Conn or FusedConn
-// Different from which in conncetion_adaptor.go
+// Different from which in connection_adaptor.go
 
 var _ FusedConn = (*PacketConnWrapper)(nil)
 

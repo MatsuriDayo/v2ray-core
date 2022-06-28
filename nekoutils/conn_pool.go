@@ -113,7 +113,7 @@ func (p *connectionPool) StartNetConn(c net.Conn, core uintptr) net.Conn {
 
 	// PacketConn -> FusedConn
 	// Conn -> Conn
-	// buf.Copy call ReadFrom if have, and fails if error returned, so do a check here
+	// buf.Copy call ReadFrom, and fails if error returned, so do a check here
 
 	if c2, ok := c.(net.PacketConn); ok {
 		mfc := mangedFusedConn{
