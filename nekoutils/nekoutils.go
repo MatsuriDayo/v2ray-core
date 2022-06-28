@@ -63,7 +63,7 @@ func GetCtxKeyValues(ctx context.Context) map[interface{}]interface{} {
 	return m
 }
 
-// Return a new context with key value
+// CopyCtx Return a new context with key value
 func CopyCtx(ctx context.Context) context.Context {
 	kv := GetCtxKeyValues(ctx)
 	ctx2 := context.Background()

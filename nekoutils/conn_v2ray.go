@@ -9,7 +9,6 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/session"
 )
 
-// 假的
 type ManagedV2rayConn struct {
 	id      uint32
 	lock    sync.Mutex
