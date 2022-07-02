@@ -336,6 +336,17 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
 	var handler outbound.Handler
 
+	routingLink := routing_session.AsRoutingContext(ctx)
+	inTag := routingLink.GetInboundTag()
+
+	var target1, target2 string
+	if ob := session.OutboundFromContext(ctx); ob != nil {
+		target1 = ob.Target.String()
+		if ob.RouteTarget.IsValid() && ob.RouteTarget.String() != target1 {
+			target2 = ob.RouteTarget.String()
+		}
+	}
+
 	if forcedOutboundTag := session.GetForcedOutboundTagFromContext(ctx); forcedOutboundTag != "" {
 		ctx = session.SetForcedOutboundTagToContext(ctx, "")
 		if h := d.ohm.GetHandler(forcedOutboundTag); h != nil {
@@ -348,16 +359,7 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			return
 		}
 	} else if d.router != nil {
-		var target1, target2 string
-		if ob := session.OutboundFromContext(ctx); ob != nil {
-			target1 = ob.Target.String()
-			if ob.RouteTarget.IsValid() && ob.RouteTarget.String() != target1 {
-				target2 = target1
-				target1 = ob.RouteTarget.String()
-			}
-		}
-
-		if route, err := d.router.PickRoute(routing_session.AsRoutingContext(ctx)); err == nil {
+		if route, err := d.router.PickRoute(routingLink); err == nil {
 			tag := route.GetOutboundTag()
 			if h := d.ohm.GetHandler(tag); h != nil {
 				newError("taking detour [", tag, "] for [", target1, "] ", target2).AtWarning().WriteToLog(session.ExportIDToError(ctx))
@@ -381,9 +383,15 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 		return
 	}
 
+	// log access
 	if accessMessage := log.AccessMessageFromContext(ctx); accessMessage != nil {
+		accessMessage.To = "[" + target1 + "] " + target2
 		if tag := handler.Tag(); tag != "" {
-			accessMessage.Detour = tag
+			if inTag == "" {
+				accessMessage.Detour = tag
+			} else {
+				accessMessage.Detour = inTag + " -> " + tag
+			}
 		}
 		log.Record(accessMessage)
 	}
