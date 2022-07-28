@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/jhump/protoreflect v1.12.0
-	github.com/lucas-clemente/quic-go v0.28.0
+	github.com/lucas-clemente/quic-go v0.28.1
 	github.com/marten-seemann/qtls-go1-16 v0.1.5
 	github.com/marten-seemann/qtls-go1-17 v0.1.2
 	github.com/marten-seemann/qtls-go1-18 v0.1.2
@@ -27,7 +27,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	google.golang.org/grpc v1.48.0
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/protobuf v1.28.1
 	h12.io/socks v1.0.3
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 )
