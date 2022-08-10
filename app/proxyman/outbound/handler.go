@@ -144,16 +144,29 @@ func (h *Handler) Tag() string {
 
 // Dispatch implements proxy.Outbound.Dispatch.
 func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
+	inbound := session.InboundFromContext(ctx)
 	outbound := session.OutboundFromContext(ctx)
 	destination := outbound.Target
 
 	// Neko connections
 	if nekoutils.Connection_V2Ray_Enabled {
+		var inboundTag, dest, routeDest string
+		var inboundUid uint32
+		dest = destination.String()
+		if outbound.RouteTarget.IsValid() {
+			routeDest = outbound.RouteTarget.String()
+		}
+		if inbound != nil {
+			inboundTag = inbound.Tag
+			inboundUid = inbound.Uid
+		}
+
 		conn := &nekoutils.ManagedV2rayConn{
-			Dest:      outbound.Target,
-			RouteDest: outbound.RouteTarget,
-			Inbound:   session.InboundFromContext(ctx),
-			Tag:       h.tag,
+			Dest:       dest,
+			RouteDest:  routeDest,
+			InboundTag: inboundTag,
+			InboundUid: inboundUid,
+			Tag:        h.tag,
 			CloseFunc: func() error {
 				common.Interrupt(link.Reader)
 				common.Interrupt(link.Writer)

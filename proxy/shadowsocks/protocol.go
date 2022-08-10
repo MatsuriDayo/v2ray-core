@@ -135,7 +135,7 @@ func WriteTCPRequest(request *protocol.RequestHeader, writer io.Writer, iv []byt
 	return w, nil
 }
 
-func ReadTCPResponse(user *protocol.MemoryUser, reader io.Reader, conn *ProtocolConn) (buf.Reader, error) {
+func ReadTCPResponse(user *protocol.MemoryUser, reader io.Reader, ssrp *ProtocolConn) (buf.Reader, error) {
 	account := user.Account.(*MemoryAccount)
 
 	hashkdf := hmac.New(sha256.New, []byte("SSBSKDF"))
@@ -164,15 +164,15 @@ func ReadTCPResponse(user *protocol.MemoryUser, reader io.Reader, conn *Protocol
 
 	r, err := account.Cipher.NewDecryptionReader(account.Key, iv, reader)
 
-	if conn != nil {
-		conn.Reader = r
-		r = conn.ProtocolReader
+	if ssrp != nil {
+		ssrp.Reader = r
+		r = ssrp.ProtocolReader
 	}
 
 	return r, err
 }
 
-func WriteTCPResponse(request *protocol.RequestHeader, writer io.Writer, iv []byte, conn *ProtocolConn) (buf.Writer, error) {
+func WriteTCPResponse(request *protocol.RequestHeader, writer io.Writer, iv []byte, ssrp *ProtocolConn) (buf.Writer, error) {
 	user := request.User
 	account := user.Account.(*MemoryAccount)
 
@@ -184,9 +184,9 @@ func WriteTCPResponse(request *protocol.RequestHeader, writer io.Writer, iv []by
 
 	w, err := account.Cipher.NewEncryptionWriter(account.Key, iv, writer)
 
-	if err == nil && conn != nil {
-		conn.Writer = w
-		w = conn.ProtocolWriter
+	if err == nil && ssrp != nil {
+		ssrp.Writer = w
+		w = ssrp.ProtocolWriter
 	}
 
 	return w, err

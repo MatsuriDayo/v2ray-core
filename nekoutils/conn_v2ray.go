@@ -4,9 +4,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	v2rayNet "github.com/v2fly/v2ray-core/v5/common/net"
-	"github.com/v2fly/v2ray-core/v5/common/session"
 )
 
 type ManagedV2rayConn struct {
@@ -16,10 +13,11 @@ type ManagedV2rayConn struct {
 
 	CloseFunc func() error
 
-	Dest      v2rayNet.Destination
-	RouteDest v2rayNet.Destination
-	Inbound   *session.Inbound
-	Tag       string
+	Dest       string
+	RouteDest  string
+	InboundTag string
+	InboundUid uint32
+	Tag        string
 
 	StartTime int64
 	EndTime   int64
@@ -33,7 +31,7 @@ func (c *ManagedV2rayConn) Close() error {
 }
 
 func (c *ManagedV2rayConn) RemoteAddress() string {
-	return c.Dest.String()
+	return c.Dest
 }
 
 func (c *ManagedV2rayConn) ID() uint32 {
