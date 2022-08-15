@@ -360,6 +360,7 @@ func (h *Handler) Start() error {
 
 // Close implements common.Closable.
 func (h *Handler) Close() error {
+	common.Close(h.proxy)
 	common.Close(h.mux)
 	return nil
 }
