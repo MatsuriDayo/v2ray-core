@@ -76,7 +76,7 @@ func NewClient(ctx context.Context, config *ClientConfig) (*Client, error) {
 		if sp, ok := plugin.(StreamPlugin); ok {
 			client.stream = sp
 
-			if err := plugin.Init("", "", s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
+			if err := plugin.Init(ctx, "", "", s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
 				return nil, newError("failed to start plugin").Base(err)
 			}
 
@@ -95,7 +95,7 @@ func NewClient(ctx context.Context, config *ClientConfig) (*Client, error) {
 				Port:    net.Port(port),
 			}
 
-			if err := plugin.Init(net.LocalHostIP.String(), strconv.Itoa(port), s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
+			if err := plugin.Init(ctx, net.LocalHostIP.String(), strconv.Itoa(port), s.Destination().Address.String(), s.Destination().Port.String(), config.PluginOpts, config.PluginArgs, s.PickUser().Account.(*MemoryAccount)); err != nil {
 				return nil, newError("failed to start plugin").Base(err)
 			}
 
