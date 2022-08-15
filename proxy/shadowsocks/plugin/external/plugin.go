@@ -40,7 +40,7 @@ func (p *Plugin) Init(ctx context.Context, localHost string, localPort string, r
 	_, name := filepath.Split(path)
 	proc := &exec.Cmd{
 		Path: path,
-		Args: pluginArgs,
+		Args: append([]string{name}, pluginArgs...),
 		Env: []string{
 			"SS_REMOTE_HOST=" + remoteHost,
 			"SS_REMOTE_PORT=" + remotePort,
