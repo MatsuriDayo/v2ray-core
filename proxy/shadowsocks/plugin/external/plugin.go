@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,6 +33,9 @@ type Plugin struct {
 }
 
 func (p *Plugin) Init(ctx context.Context, localHost string, localPort string, remoteHost string, remotePort string, pluginOpts string, pluginArgs []string, account *shadowsocks.MemoryAccount) error {
+	if runtime.GOOS != "android" {
+		return errors.New("cannot run on your system")
+	}
 	p.done = done.New()
 	path, err := exec.LookPath(p.Plugin)
 	if err != nil {
