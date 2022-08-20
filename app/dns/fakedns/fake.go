@@ -142,6 +142,9 @@ func (fkdns *Holder) GetFakeIPForDomain(domain string) []net.Address {
 
 // GetDomainFromFakeDNS checks if an IP is a fake IP and have corresponding domain name
 func (fkdns *Holder) GetDomainFromFakeDNS(ip net.Address) string {
+	if fkdns.ipRange == nil || fkdns.domainToIP == nil {
+		return ""
+	}
 	if !ip.Family().IsIP() || !fkdns.ipRange.Contains(ip.IP()) {
 		return ""
 	}
