@@ -29,8 +29,11 @@ type Client struct {
 	clientIP     net.IP
 	skipFallback bool
 	domains      []string
-	uidList      *net.UidList
 	expectIPs    []*router.GeoIPMatcher
+
+	uidList *net.UidList
+	noV4    bool
+	noV6    bool
 }
 
 var errExpectedIPNonMatch = errors.New("expectIPs not match")
@@ -153,6 +156,8 @@ func NewClient(ctx context.Context, ns *NameServer, clientIP net.IP, container r
 		client.domains = rules
 		client.uidList = ns.UidList
 		client.expectIPs = matchers
+		client.noV4 = ns.NoV4
+		client.noV6 = ns.NoV6
 		return nil
 	})
 	return client, err
@@ -190,6 +195,13 @@ func (c *Client) Name() string {
 
 // QueryIP send DNS query to the name server with the client's IP.
 func (c *Client) QueryIP(ctx context.Context, domain string, option dns.IPOption, disableCache bool) ([]net.IP, error) {
+	if option.IPv4Enable && !option.IPv6Enable && c.noV4 {
+		return nil, dns.ErrEmptyResponse
+	}
+	if option.IPv6Enable && !option.IPv4Enable && c.noV6 {
+		return nil, dns.ErrEmptyResponse
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	ips, err := c.server.QueryIP(ctx, domain, c.clientIP, option, disableCache)
 	cancel()

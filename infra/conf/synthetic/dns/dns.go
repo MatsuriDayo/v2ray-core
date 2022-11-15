@@ -27,6 +27,9 @@ type NameServerConfig struct {
 	UidList      cfgcommon.UidList
 	ExpectIPs    cfgcommon.StringList
 
+	NoV4 bool
+	NoV6 bool
+
 	cfgctx context.Context
 }
 
@@ -43,6 +46,8 @@ func (c *NameServerConfig) UnmarshalJSON(data []byte) (err error) {
 			Domains      []string             `json:"domains"`
 			UidList      cfgcommon.UidList    `json:"uidList"`
 			ExpectIPs    cfgcommon.StringList `json:"expectIps"`
+			NoV4         bool                 `json:"noV4"`
+			NoV6         bool                 `json:"noV6"`
 		}
 		if err = json.Unmarshal(data, &advanced); err == nil {
 			c.Address = advanced.Address
@@ -52,6 +57,8 @@ func (c *NameServerConfig) UnmarshalJSON(data []byte) (err error) {
 			c.Domains = advanced.Domains
 			c.ExpectIPs = advanced.ExpectIPs
 			c.UidList = advanced.UidList
+			c.NoV4 = advanced.NoV4
+			c.NoV6 = advanced.NoV6
 		}
 	}
 
@@ -144,6 +151,8 @@ func (c *NameServerConfig) Build() (*dns.NameServer, error) {
 		Geoip:             geoipList,
 		OriginalRules:     originalRules,
 		UidList:           c.UidList.Build(),
+		NoV4:              c.NoV4,
+		NoV6:              c.NoV6,
 	}, nil
 }
 
