@@ -101,9 +101,10 @@ import (
 
 	// V5 version of json configure file parser
 	_ "github.com/v2fly/v2ray-core/v5/infra/conf/v5cfg"
-	// // Simplified config
-	// _ "github.com/v2fly/v2ray-core/v5/proxy/http/simplified"
-	// _ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/simplified"
-	// _ "github.com/v2fly/v2ray-core/v5/proxy/socks/simplified"
-	// _ "github.com/v2fly/v2ray-core/v5/proxy/trojan/simplified"
+
+	// V5 Simplified config
+	_ "github.com/v2fly/v2ray-core/v5/proxy/http/simplified"
+	_ "github.com/v2fly/v2ray-core/v5/proxy/shadowsocks/simplified"
+	_ "github.com/v2fly/v2ray-core/v5/proxy/socks/simplified"
+	_ "github.com/v2fly/v2ray-core/v5/proxy/trojan/simplified"
 )

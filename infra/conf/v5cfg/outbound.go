@@ -12,7 +12,24 @@ import (
 )
 
 func (c OutboundConfig) BuildV5(ctx context.Context) (proto.Message, error) {
+	// senderSettings
 	senderSettings := &proxyman.SenderConfig{}
+
+	// v2sekai outbound DomainStrategy
+	switch c.DomainStrategy {
+	case "UseIP":
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_USE_IP
+	case "UseIPv4":
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_USE_IP4
+	case "UseIPv6":
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_USE_IP6
+	case "PreferIPv4":
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_PREFER_IP4
+	case "PreferIPv6":
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_PREFER_IP6
+	default:
+		senderSettings.DomainStrategy = proxyman.DomainStrategy_AS_IS
+	}
 
 	if c.SendThrough != nil {
 		address := c.SendThrough
@@ -41,6 +58,8 @@ func (c OutboundConfig) BuildV5(ctx context.Context) (proto.Message, error) {
 	if c.MuxSettings != nil {
 		senderSettings.MultiplexSettings = c.MuxSettings.Build()
 	}
+
+	// settings
 
 	if c.Settings == nil {
 		c.Settings = []byte("{}")
