@@ -1,6 +1,7 @@
 package v4
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/infra/conf/cfgcommon/loader"
 	"github.com/v2fly/v2ray-core/v5/infra/conf/cfgcommon/socketcfg"
 	"github.com/v2fly/v2ray-core/v5/infra/conf/cfgcommon/tlscfg"
+	"github.com/v2fly/v2ray-core/v5/infra/conf/v5cfg"
 	"github.com/v2fly/v2ray-core/v5/transport/internet"
 	"github.com/v2fly/v2ray-core/v5/transport/internet/domainsocket"
 	httpheader "github.com/v2fly/v2ray-core/v5/transport/internet/headers/http"
@@ -288,6 +290,7 @@ type StreamConfig struct {
 	Network        *TransportProtocol      `json:"network"`
 	Security       string                  `json:"security"`
 	TLSSettings    *tlscfg.TLSConfig       `json:"tlsSettings"`
+	UTLSSettings   json.RawMessage         `json:"utlsSettings"`
 	TCPSettings    *TCPConfig              `json:"tcpSettings"`
 	KCPSettings    *KCPConfig              `json:"kcpSettings"`
 	WSSettings     *WebSocketConfig        `json:"wsSettings"`
@@ -323,6 +326,14 @@ func (c *StreamConfig) Build() (*internet.StreamConfig, error) {
 		tm := serial.ToTypedMessage(ts)
 		config.SecuritySettings = append(config.SecuritySettings, tm)
 		config.SecurityType = serial.V2Type(tm)
+	} else if strings.EqualFold(c.Security, "utls") {
+		securityConfigPack, err := v5cfg.LoadHeterogeneousConfigFromRawJSON(context.TODO(), "security", "utls", c.UTLSSettings)
+		if err != nil {
+			return nil, newError("unable to load uTLS config").Base(err)
+		}
+		securityConfigPackTypedMessage := serial.ToTypedMessage(securityConfigPack)
+		config.SecurityType = serial.V2Type(securityConfigPackTypedMessage)
+		config.SecuritySettings = append(config.SecuritySettings, securityConfigPackTypedMessage)
 	}
 	if c.TCPSettings != nil {
 		ts, err := c.TCPSettings.Build()

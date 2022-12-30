@@ -38,12 +38,12 @@ func filterMessage(ctx context.Context, message protoreflect.Message) error {
 	message.Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		v2extension, ferr := protoext.GetFieldOptions(descriptor)
 		if ferr == nil {
-			if v2extension.Forbidden {
-				if value.Bool() {
-					err = newError("a forbidden value is set ", descriptor.FullName())
-					return false
-				}
-			}
+			// if v2extension.Forbidden {
+			// 	if value.Bool() {
+			// 		err = newError("a forbidden value is set ", descriptor.FullName())
+			// 		return false
+			// 	}
+			// }
 
 			if v2extension.ConvertTimeReadFileInto != "" {
 				fileReadingQueue = append(fileReadingQueue, fileRead{
