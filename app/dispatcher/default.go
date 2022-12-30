@@ -15,6 +15,7 @@ import (
 	"github.com/v2fly/v2ray-core/v5/common/net"
 	"github.com/v2fly/v2ray-core/v5/common/protocol"
 	"github.com/v2fly/v2ray-core/v5/common/session"
+	"github.com/v2fly/v2ray-core/v5/common/strmatcher"
 	"github.com/v2fly/v2ray-core/v5/features/outbound"
 	"github.com/v2fly/v2ray-core/v5/features/policy"
 	"github.com/v2fly/v2ray-core/v5/features/routing"
@@ -228,13 +229,14 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 				content.Protocol = result.Protocol()
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
-				domain := result.Domain()
-				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
-				destination.Address = net.ParseAddress(domain)
-				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
-					ob.RouteTarget = destination
-				} else {
-					ob.Target = destination
+				if domain, err := strmatcher.ToDomain(result.Domain()); err == nil {
+					newError("sniffed domain: ", domain, " for ", destination).WriteToLog(session.ExportIDToError(ctx))
+					destination.Address = net.ParseAddress(domain)
+					if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
+						ob.RouteTarget = destination
+					} else {
+						ob.Target = destination
+					}
 				}
 			}
 			d.routedDispatch(ctx, outbound, destination)
@@ -272,13 +274,14 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 				content.Protocol = result.Protocol()
 			}
 			if err == nil && shouldOverride(result, sniffingRequest.OverrideDestinationForProtocol) {
-				domain := result.Domain()
-				newError("sniffed domain: ", domain).AtDebug().WriteToLog(session.ExportIDToError(ctx))
-				destination.Address = net.ParseAddress(domain)
-				if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
-					ob.RouteTarget = destination
-				} else {
-					ob.Target = destination
+				if domain, err := strmatcher.ToDomain(result.Domain()); err == nil {
+					newError("sniffed domain: ", domain, " for ", destination).WriteToLog(session.ExportIDToError(ctx))
+					destination.Address = net.ParseAddress(domain)
+					if sniffingRequest.RouteOnly && result.Protocol() != "fakedns" {
+						ob.RouteTarget = destination
+					} else {
+						ob.Target = destination
+					}
 				}
 			}
 			d.routedDispatch(ctx, outbound, destination)

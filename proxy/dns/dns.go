@@ -15,6 +15,7 @@ import (
 	dns_proto "github.com/v2fly/v2ray-core/v5/common/protocol/dns"
 	"github.com/v2fly/v2ray-core/v5/common/session"
 	"github.com/v2fly/v2ray-core/v5/common/signal"
+	"github.com/v2fly/v2ray-core/v5/common/strmatcher"
 	"github.com/v2fly/v2ray-core/v5/common/task"
 	"github.com/v2fly/v2ray-core/v5/features/dns"
 	"github.com/v2fly/v2ray-core/v5/features/policy"
@@ -55,6 +56,10 @@ type Handler struct {
 }
 
 func (h *Handler) Init(config *Config, dnsClient dns.Client, policyManager policy.Manager) error {
+	// Enable FakeDNS for DNS outbound
+	if clientWithFakeDNS, ok := dnsClient.(dns.ClientWithFakeDNS); ok {
+		dnsClient = clientWithFakeDNS.AsFakeDNSClient()
+	}
 	h.client = dnsClient
 	h.timeout = policyManager.ForLevel(config.UserLevel).Timeouts.ConnectionIdle
 
@@ -115,10 +120,10 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 		return newError("invalid outbound")
 	}
 
-	fakeDNS := true
+	skipFakeDNS := false
 	inbound := session.InboundFromContext(ctx)
 	if inbound != nil && inbound.SkipFakeDNS {
-		fakeDNS = false
+		skipFakeDNS = true
 	}
 
 	srcNetwork := outbound.Target.Network
@@ -194,8 +199,10 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 			if !h.isOwnLink(ctx) {
 				isIPQuery, domain, id, qType := parseIPQuery(b.Bytes())
 				if isIPQuery {
-					go h.handleIPQuery(id, qType, domain, writer, fakeDNS, inbound)
-					continue
+					if domain, err := strmatcher.ToDomain(domain); err == nil {
+						go h.handleIPQuery(id, qType, domain, writer, skipFakeDNS, inbound)
+						continue
+					}
 				}
 			}
 
@@ -231,23 +238,17 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, d internet.
 	return nil
 }
 
-func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter, fakedns bool, inbound *session.Inbound) {
+func (h *Handler) handleIPQuery(id uint16, qType dnsmessage.Type, domain string, writer dns_proto.MessageWriter, skipFakeDNS bool, inbound *session.Inbound) {
 	var ips []net.IP
 	var err error
 
 	var ttl uint32 = 600
 
-	// Do NOT skip FakeDNS
-	if c, ok := h.client.(dns.ClientWithIPOption); ok {
-		c.SetFakeDNSOption(fakedns)
-	} else {
-		newError("dns.Client doesn't implement ClientWithIPOption")
-	}
-
 	// Matsuri: hook
 	mdomain := &dns.MatsuriDomainStringEx{
-		Domain:     domain,
-		OptInbound: inbound,
+		Domain:         domain,
+		OptInbound:     inbound,
+		OptSkipFakeDNS: skipFakeDNS,
 	}
 
 	switch qType {
