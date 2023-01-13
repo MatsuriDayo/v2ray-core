@@ -187,6 +187,7 @@ func (s *Server) transport(ctx context.Context, reader io.Reader, writer io.Writ
 }
 
 func (s *Server) handleUDPPayload(ctx context.Context, conn internet.Connection, dispatcher routing.Dispatcher) error {
+	// A local port
 	udpDispatcherConstructor := udp.NewSplitDispatcher
 	switch s.config.PacketEncoding {
 	case packetaddr.PacketAddrType_None:
@@ -196,16 +197,11 @@ func (s *Server) handleUDPPayload(ctx context.Context, conn internet.Connection,
 		udpDispatcherConstructor = packetAddrDispatcherFactory.NewPacketAddrDispatcher
 	}
 	udpServer := udpDispatcherConstructor(dispatcher, func(ctx context.Context, packet *udp_proto.Packet) {
+		// downlink callback
 		payload := packet.Payload
 
-		request := protocol.RequestHeaderFromContext(ctx)
-		var packetSource net.Destination
-		if request == nil {
-			packetSource = packet.Source
-		} else {
-			packetSource = net.UDPDestination(request.Address, request.Port)
-		}
-		udpMessage, err := EncodeUDPPacketFromAddress(packetSource, payload.Bytes())
+		// encode endpoint to socks5 udp packet
+		udpMessage, err := EncodeUDPPacketFromAddress(packet.Source, payload.Bytes())
 		payload.Release()
 
 		defer udpMessage.Release()
