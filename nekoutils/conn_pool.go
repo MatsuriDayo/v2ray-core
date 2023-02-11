@@ -1,7 +1,9 @@
 package nekoutils
 
 import (
+	"encoding/json"
 	"net"
+	"sort"
 	"sync"
 	"sync/atomic"
 )
@@ -14,7 +16,22 @@ type connectionPool struct {
 var ConnectionPool_System = &connectionPool{sync.Map{}, 0}
 var ConnectionPool_V2Ray = &connectionPool{sync.Map{}, 0}
 var ConnectionLog_V2Ray = &connectionPool{sync.Map{}, 0}
-var Connection_V2Ray_Enabled = false
+var coreUseConnectionPool sync.Map
+
+func GetConnectionPoolV2RayEnabled(core uintptr) bool {
+	if v, ok := coreUseConnectionPool.Load(core); ok {
+		return v.(bool)
+	}
+	return false
+}
+
+func SetConnectionPoolV2RayEnabled(core uintptr, enable bool) {
+	if enable {
+		coreUseConnectionPool.Store(core, true)
+	} else {
+		coreUseConnectionPool.Delete(core)
+	}
+}
 
 // For one conn
 
@@ -126,4 +143,94 @@ func (p *connectionPool) StartNetConn(c net.Conn, core uintptr) net.Conn {
 		p.AddConnection(&mc)
 		return &mc
 	}
+}
+
+//
+
+var ListConnections_MaxLineCount = 100
+var ListConnections_IgnoreTags = func(tag string) bool {
+	if tag == "dns-out" || tag == "direct" {
+		return true
+	}
+	return false
+}
+
+func ListConnections(corePtr uintptr) string {
+	list2 := make([]interface{}, 0)
+
+	rangeMap := func(m *sync.Map) []interface{} {
+		vs := make(map[uint32]interface{}, 0)
+		ks := make([]uint32, 0)
+
+		m.Range(func(key interface{}, value interface{}) bool {
+			if k, ok := key.(uint32); ok {
+				vs[k] = value
+				ks = append(ks, k)
+			}
+			return true
+		})
+
+		sort.Slice(ks, func(i, j int) bool { return ks[i] > ks[j] })
+
+		ret := make([]interface{}, 0)
+		for _, id := range ks {
+			ret = append(ret, vs[id])
+		}
+		return ret
+	}
+
+	addToList := func(list interface{}) {
+		for i, c := range list.([]interface{}) {
+			if i >= ListConnections_MaxLineCount {
+				return
+			}
+			if c2, ok := c.(*ManagedV2rayConn); ok {
+				if ListConnections_IgnoreTags(c2.Tag) {
+					continue
+				}
+				if corePtr != 0 && corePtr != c2.corePtr {
+					continue
+				}
+				item := &struct {
+					ID    uint32
+					Dest  string
+					RDest string
+					Uid   uint32
+					Start int64
+					End   int64
+					Tag   string
+				}{
+					c2.ID(),
+					c2.Dest,
+					c2.RouteDest,
+					c2.InboundUid,
+					c2.StartTime,
+					c2.EndTime,
+					c2.Tag,
+				}
+				list2 = append(list2, item)
+			}
+		}
+	}
+
+	addToList(rangeMap(&ConnectionPool_V2Ray.Map))
+	addToList(rangeMap(&ConnectionLog_V2Ray.Map))
+
+	b, _ := json.Marshal(&list2)
+	return string(b)
+}
+
+func ResetAllConnections(system bool) {
+	if system {
+		ConnectionPool_System.ResetConnections(0)
+	} else {
+		ConnectionPool_V2Ray.ResetConnections(0)
+		ConnectionLog_V2Ray.ResetConnections(0)
+	}
+}
+
+func ResetConnections(corePtr uintptr) {
+	ConnectionLog_V2Ray.ResetConnections(corePtr)
+	ConnectionPool_V2Ray.ResetConnections(corePtr)
+	ConnectionPool_System.ResetConnections(corePtr)
 }

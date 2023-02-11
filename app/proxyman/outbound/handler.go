@@ -149,7 +149,8 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 	destination := outbound.Target
 
 	// Neko connections
-	if nekoutils.Connection_V2Ray_Enabled {
+	corePtr := nekoutils.CorePtrFromContext(ctx)
+	if nekoutils.GetConnectionPoolV2RayEnabled(corePtr) {
 		var inboundTag, dest, routeDest string
 		var inboundUid uint32
 		dest = destination.String()
@@ -177,7 +178,7 @@ func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
 			conn.ConnectionEnd()
 			return true
 		})
-		conn.ConnectionStart(nekoutils.CorePtrFromContext(ctx))
+		conn.ConnectionStart(corePtr)
 	}
 
 	if h.mux != nil && (h.mux.Enabled || session.MuxPreferedFromContext(ctx)) {
